@@ -1,7 +1,8 @@
 (() => {
   "use strict";
 
-  const STORE_KEY = "meal_admin_offline_prototype_v1";
+  const STORE_KEY = "meal_admin_system_v2_cache";
+  const API_STATE_URL = "/api/state";
   const TABLE_KEYS = [
     "customers",
     "orders",
@@ -120,6 +121,10 @@
   let currentFormSubmit = null;
   let pendingConfirm = null;
   let comboIdSeed = 0;
+  let remoteSaveEnabled = false;
+  let remoteSaveTimer = null;
+  let remoteSaveInFlight = false;
+  let remoteSaveQueued = false;
   const copyCache = {};
 
   const view = {
@@ -147,11 +152,7 @@
     },
   };
 
-  document.addEventListener("DOMContentLoaded", () => {
-    normalizeState();
-    preloadLabelQrImage();
-    render();
-  });
+  document.addEventListener("DOMContentLoaded", bootApp);
   window.addEventListener("hashchange", () => {
     view.page = getPageFromHash();
     render();
@@ -161,6 +162,22 @@
   document.addEventListener("submit", handleSubmit);
   document.addEventListener("input", handleInput);
   document.addEventListener("keydown", handleKeydown);
+
+  async function bootApp() {
+    try {
+      const remoteState = await fetchRemoteState();
+      state = isEmptyEntityState(remoteState) ? seedState() : remoteState;
+    } catch (error) {
+      console.error(error);
+      toast("数据库读取失败，已使用本地缓存临时显示。");
+    }
+    resetViewSelections();
+    remoteSaveEnabled = true;
+    normalizeState();
+    preloadLabelQrImage();
+    render();
+    queueRemoteSave();
+  }
 
   function loadState() {
     try {
@@ -174,6 +191,40 @@
     } catch (error) {
       console.warn(error);
       return seedState();
+    }
+  }
+
+  async function fetchRemoteState() {
+    const response = await fetch(API_STATE_URL, { cache: "no-store" });
+    if (!response.ok) throw new Error(`读取数据失败：${response.status}`);
+    const remote = await response.json();
+    TABLE_KEYS.forEach((key) => {
+      if (!Array.isArray(remote[key])) remote[key] = [];
+    });
+    return remote;
+  }
+
+  function isEmptyEntityState(candidate) {
+    if (!candidate) return true;
+    return TABLE_KEYS.every((key) => !Array.isArray(candidate[key]) || candidate[key].length === 0);
+  }
+
+  function resetViewSelections() {
+    if (!state.customers.some((customer) => customer.id === view.selectedCustomerId)) {
+      view.selectedCustomerId = state.customers[0]?.id || "";
+    }
+    if (!state.orders.some((order) => order.id === view.selectedOrderId)) {
+      view.selectedOrderId = state.orders[0]?.id || "";
+    }
+    if (!state.customers.some((customer) => customer.id === view.selectedFeedbackCustomerId)) {
+      view.selectedFeedbackCustomerId = state.customers[0]?.id || "";
+    }
+    if (!state.customers.some((customer) => customer.id === view.posterCustomerId)) {
+      view.posterCustomerId = state.customers[0]?.id || "";
+      view.posterOrderId = "";
+    }
+    if (!state.orders.some((order) => order.id === view.posterOrderId)) {
+      view.posterOrderId = "";
     }
   }
 
@@ -214,7 +265,39 @@
   }
 
   function saveState() {
+    state.meta = { ...(state.meta || {}), schemaVersion: 2, storage: "mysql", savedAt: new Date().toISOString() };
     localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    if (remoteSaveEnabled) queueRemoteSave();
+  }
+
+  function queueRemoteSave() {
+    window.clearTimeout(remoteSaveTimer);
+    remoteSaveTimer = window.setTimeout(() => persistRemoteState(), 260);
+  }
+
+  async function persistRemoteState() {
+    if (!remoteSaveEnabled) return;
+    if (remoteSaveInFlight) {
+      remoteSaveQueued = true;
+      return;
+    }
+    remoteSaveInFlight = true;
+    remoteSaveQueued = false;
+    const payload = JSON.stringify(state);
+    try {
+      const response = await fetch(API_STATE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      });
+      if (!response.ok) throw new Error(`保存失败：${response.status}`);
+    } catch (error) {
+      console.error(error);
+      toast("保存到数据库失败，请检查服务是否运行。");
+    } finally {
+      remoteSaveInFlight = false;
+      if (remoteSaveQueued) queueRemoteSave();
+    }
   }
 
   function seedState() {
