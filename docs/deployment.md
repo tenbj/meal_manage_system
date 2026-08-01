@@ -108,3 +108,7 @@ http://localhost:3200/api/health
 - 后端入口是 `src/server.js`。
 - 数据库初始化入口是 `scripts/setup-db.js`。
 - 如需重新初始化样例数据，请先确认没有重要数据，再执行 `node scripts/seed-db-from-prototype.js --force`。
+
+## 11. API 文档
+
+外部脚本或自动化 skill 需要向系统写入业务数据时，见 [Skill 数据写入 API](skill-data-api.md)。
