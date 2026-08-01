@@ -32,6 +32,7 @@ DB_PASSWORD=你的密码
 DB_NAME=meal_manage_system_v2
 DB_CHARSET=utf8mb4
 PORT=3200
+AI_WRITE_TOKEN=给自动化写入接口使用的令牌
 ```
 
 当前机器已经配置好 `.env`。`.env` 不进入 Git，避免泄露密码。
@@ -108,3 +109,7 @@ http://localhost:3200/api/health
 - 后端入口是 `src/server.js`。
 - 数据库初始化入口是 `scripts/setup-db.js`。
 - 如需重新初始化样例数据，请先确认没有重要数据，再执行 `node scripts/seed-db-from-prototype.js --force`。
+
+## 11. API 文档
+
+外部脚本或自动化 skill 需要向系统写入业务数据时，见 [AI 功能写入 API](skill-data-api.md)。
