@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>减肥餐管理后台 · 离线原型</title>
+    <link rel="stylesheet" href="assets/admin.css" />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <div class="brand-mark">餐</div>
+          <div>
+            <div class="brand-name">减肥餐管理后台</div>
+            <div class="brand-subtitle">离线工作台原型</div>
+          </div>
+        </div>
+        <nav id="sideNav" class="side-nav" aria-label="核心页面"></nav>
+        <div class="sidebar-note">
+          <span class="status-dot"></span>
+          本地模拟保存
+        </div>
+      </aside>
+
+      <main class="main-shell">
+        <header class="topbar">
+          <div>
+            <div class="page-kicker" id="pageKicker">今日工作</div>
+            <h1 id="pageTitle">首页看板</h1>
+          </div>
+          <div class="topbar-right">
+            <div class="today-pill" id="topDate"></div>
+            <div class="top-actions" id="topActions"></div>
+          </div>
+        </header>
+        <section id="content" class="content-area"></section>
+      </main>
+    </div>
+
+    <div id="modalRoot" class="modal-root" aria-live="polite"></div>
+    <div id="toastRoot" class="toast-root" aria-live="polite"></div>
+
+    <script src="assets/admin.js"></script>
+  </body>
+</html>
