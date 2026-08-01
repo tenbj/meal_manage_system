@@ -5,6 +5,7 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 const config = {
   port: Number(process.env.PORT || 3200),
+  aiWriteToken: process.env.AI_WRITE_TOKEN || "",
   db: {
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT || 3306),

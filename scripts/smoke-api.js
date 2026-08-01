@@ -16,6 +16,9 @@ async function main() {
     for (const key of keys) {
       if (!Array.isArray(state[key])) throw new Error(`状态字段不是数组：${key}`);
     }
+    const capabilities = await fetch(`${base}/api/ai/capabilities`).then((res) => res.json());
+    if (!capabilities.ok || !Array.isArray(capabilities.endpoints)) throw new Error("AI 写入能力清单不可用");
+    if (!capabilities.endpoints.some((endpoint) => endpoint.path === "/api/ai/customers")) throw new Error("AI 客户写入入口缺失");
     console.log("接口冒烟测试通过");
   } finally {
     await new Promise((resolve) => server.close(resolve));

@@ -32,4 +32,4 @@ http://localhost:3200/api/health
 
 更多部署细节见 [docs/deployment.md](docs/deployment.md)。
 
-外部脚本或自动化 skill 需要向系统写入业务数据时，见 [docs/skill-data-api.md](docs/skill-data-api.md)。
+外部脚本或自动化 skill 需要向系统写入业务数据时，见 [AI 功能写入 API](docs/skill-data-api.md)。

@@ -32,6 +32,7 @@ DB_PASSWORD=你的密码
 DB_NAME=meal_manage_system_v2
 DB_CHARSET=utf8mb4
 PORT=3200
+AI_WRITE_TOKEN=给自动化写入接口使用的令牌
 ```
 
 当前机器已经配置好 `.env`。`.env` 不进入 Git，避免泄露密码。
@@ -111,4 +112,4 @@ http://localhost:3200/api/health
 
 ## 11. API 文档
 
-外部脚本或自动化 skill 需要向系统写入业务数据时，见 [Skill 数据写入 API](skill-data-api.md)。
+外部脚本或自动化 skill 需要向系统写入业务数据时，见 [AI 功能写入 API](skill-data-api.md)。

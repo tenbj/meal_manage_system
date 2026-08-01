@@ -105,6 +105,75 @@ async function writeState(rawState) {
   }
 }
 
+async function createCustomer(item) {
+  const pool = getPool();
+  await insertCustomer(pool, item);
+  return saveResult(item.id);
+}
+
+async function createOrder(item) {
+  const pool = getPool();
+  await insertOrder(pool, item);
+  return saveResult(item.id);
+}
+
+async function createDish(item) {
+  const pool = getPool();
+  await insertDish(pool, item);
+  return saveResult(item.id);
+}
+
+async function createRecipe(item) {
+  const pool = getPool();
+  await insertRecipe(pool, item);
+  return saveResult(item.id);
+}
+
+async function createDailyOut(item) {
+  const pool = getPool();
+  await insertDailyOut(pool, item);
+  return saveResult(item.id);
+}
+
+async function createFeedback(item) {
+  const pool = getPool();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await insertFeedback(connection, item);
+    await syncCustomerFeedback(connection, item);
+    await connection.commit();
+    return saveResult(item.id);
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+async function createLabel(item) {
+  const pool = getPool();
+  await insertPayload(pool, "labels", "label_date", "meal", item.date, item.meal, item.customerId, item);
+  return saveResult(item.id);
+}
+
+async function createDelivery(item) {
+  const pool = getPool();
+  await insertPayload(pool, "deliveries", "delivery_date", "meal", item.date, item.meal, item.customerId, item);
+  return saveResult(item.id);
+}
+
+async function createPoster(item) {
+  const pool = getPool();
+  await insertPayload(pool, "posters", "generated_at", "order_id", item.generatedAt, item.orderId, item.customerId, item);
+  return saveResult(item.id);
+}
+
+function saveResult(id) {
+  return { id, savedAt: new Date().toISOString() };
+}
+
 async function countRows() {
   const pool = getPool();
   const tables = ["customers", "orders", "dishes", "recipes", "daily_out", "feedbacks", "labels", "deliveries", "posters"];
@@ -355,6 +424,36 @@ async function insertFeedback(connection, item) {
   );
 }
 
+async function syncCustomerFeedback(connection, item) {
+  if (!item?.customerId) return;
+  const updates = {};
+  const [rows] = await connection.query("SELECT current_weight, dislikes, weight_records FROM customers WHERE id = ?", [item.customerId]);
+  const customer = rows[0];
+  if (!customer) return;
+
+  if (item.weight) {
+    updates.current_weight = Number(item.weight);
+    const records = parseJson(customer.weight_records, []);
+    const existing = records.find((record) => record.date === item.date);
+    if (existing) existing.weight = Number(item.weight);
+    else records.push({ date: item.date, weight: Number(item.weight) });
+    updates.weight_records = json(records);
+  }
+
+  if (item.dislikeDish) {
+    const dislikes = parseJson(customer.dislikes, []);
+    if (!dislikes.includes(item.dislikeDish)) {
+      dislikes.push(item.dislikeDish);
+      updates.dislikes = json(dislikes);
+    }
+  }
+
+  const entries = Object.entries(updates);
+  if (!entries.length) return;
+  const assignments = entries.map(([key]) => `${key} = ?`).join(", ");
+  await connection.query(`UPDATE customers SET ${assignments} WHERE id = ?`, [...entries.map(([, value]) => value), item.customerId]);
+}
+
 async function insertPayload(connection, table, dateColumn, secondaryColumn, dateValue, secondaryValue, customerId, payload) {
   if (!payload?.id) return;
   await connection.query(
@@ -368,6 +467,15 @@ module.exports = {
   readState,
   writeState,
   countRows,
+  createCustomer,
+  createOrder,
+  createDish,
+  createRecipe,
+  createDailyOut,
+  createFeedback,
+  createLabel,
+  createDelivery,
+  createPoster,
   stateShape,
   parseJson,
 };
