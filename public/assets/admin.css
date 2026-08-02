@@ -882,8 +882,10 @@ tbody tr.selected-row {
   padding: 22px;
   gap: 12px;
   border: 2px solid #15212b;
-  color: #15212b;
+  color: #0b1117;
   background: #ffffff;
+  font-weight: 760;
+  text-rendering: geometricPrecision;
 }
 
 .sticker-head,
@@ -903,13 +905,13 @@ tbody tr.selected-row {
 .sticker-brand {
   font-size: 22px;
   line-height: 1.15;
-  font-weight: 850;
+  font-weight: 900;
 }
 
 .sticker-sub {
   margin-top: 7px;
   font-size: 15px;
-  font-weight: 850;
+  font-weight: 900;
 }
 
 .sticker-size {
@@ -921,7 +923,7 @@ tbody tr.selected-row {
   display: grid;
   place-items: center;
   font-size: 16px;
-  font-weight: 850;
+  font-weight: 900;
 }
 
 .sticker-line {
@@ -947,7 +949,7 @@ tbody tr.selected-row {
   display: block;
   color: #15212b;
   font-size: 15px;
-  font-weight: 850;
+  font-weight: 900;
 }
 
 .sticker-kcal strong {
@@ -961,6 +963,7 @@ tbody tr.selected-row {
 .sticker-kcal b {
   margin-left: 8px;
   font-size: 22px;
+  font-weight: 900;
 }
 
 .sticker-side {
@@ -980,6 +983,7 @@ tbody tr.selected-row {
   display: block;
   margin-top: 8px;
   font-size: 24px;
+  font-weight: 900;
 }
 
 .sticker-macros {
@@ -996,6 +1000,7 @@ tbody tr.selected-row {
   display: block;
   margin-top: 8px;
   font-size: 26px;
+  font-weight: 900;
 }
 
 .sticker-food {
@@ -1024,7 +1029,7 @@ tbody tr.selected-row {
   align-items: start;
   gap: 10px;
   font-size: 15px;
-  font-weight: 850;
+  font-weight: 900;
 }
 
 .sticker-food-line b {
@@ -1034,11 +1039,13 @@ tbody tr.selected-row {
   display: grid;
   place-items: center;
   font-size: 14px;
+  font-weight: 900;
 }
 
 .sticker-food-line span {
   padding-top: 4px;
   line-height: 1.45;
+  font-weight: 850;
 }
 
 .sticker-tip {
@@ -1056,6 +1063,7 @@ tbody tr.selected-row {
   place-items: center;
   text-align: center;
   font-size: 15px;
+  font-weight: 900;
   line-height: 1.15;
 }
 

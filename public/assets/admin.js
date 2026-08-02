@@ -3181,8 +3181,14 @@
     return canvas;
   }
 
+  function labelPrintWeight(weight = 400) {
+    if (weight >= 900) return 900;
+    if (weight >= 800) return 850;
+    return Math.max(weight, 700);
+  }
+
   function labelFont(sizePt, weight = 400) {
-    return `${weight} ${Math.round(sizePt * LABEL_CANVAS_DPI / 72)}px Microsoft YaHei, PingFang SC, Arial, sans-serif`;
+    return `${labelPrintWeight(weight)} ${Math.round(sizePt * LABEL_CANVAS_DPI / 72)}px Microsoft YaHei, PingFang SC, Arial, sans-serif`;
   }
 
   function labelText(ctx, text, x, y, sizePt, weight, color, align = "left") {
@@ -3256,7 +3262,7 @@
     ctx.fillStyle = colors.ink;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = `${pt(6.8)}px Microsoft YaHei, PingFang SC, Arial, sans-serif`;
+    ctx.font = labelFont(6.8, 850);
     ctx.fillText(text, Math.round(x + width / 2), Math.round(y + height / 2 + 1));
     ctx.restore();
   }
@@ -3266,10 +3272,10 @@
     ctx.save();
     ctx.textAlign = "center";
     ctx.fillStyle = colors.muted;
-    ctx.font = `${pt(5.0)}px Microsoft YaHei, PingFang SC, Arial, sans-serif`;
+    ctx.font = labelFont(5.0, 700);
     ctx.fillText(label, Math.round(x + width / 2), Math.round(y + height * 0.34));
     ctx.fillStyle = colors.ink;
-    ctx.font = `${pt(6.9)}px Microsoft YaHei, PingFang SC, Arial, sans-serif`;
+    ctx.font = labelFont(6.9, 850);
     ctx.fillText(value, Math.round(x + width / 2), Math.round(y + height * 0.78));
     ctx.restore();
   }
@@ -3279,10 +3285,10 @@
     ctx.save();
     ctx.textAlign = "center";
     ctx.fillStyle = colors.muted;
-    ctx.font = `${pt(5.65)}px Microsoft YaHei, PingFang SC, Arial, sans-serif`;
+    ctx.font = labelFont(5.65, 750);
     ctx.fillText(label, Math.round(x + width / 2), Math.round(y + height * 0.32));
     ctx.fillStyle = colors.ink;
-    ctx.font = `${pt(8.6)}px Microsoft YaHei, PingFang SC, Arial, sans-serif`;
+    ctx.font = labelFont(8.6, 900);
     ctx.fillText(value, Math.round(x + width / 2), Math.round(y + height * 0.78));
     ctx.restore();
   }
@@ -3304,16 +3310,16 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = colors.ink;
-    ctx.font = `800 ${pt(5.5)}px Microsoft YaHei, PingFang SC, Arial, sans-serif`;
+    ctx.font = labelFont(5.5, 900);
     ctx.fillText(label, Math.round(x + tagWidth / 2), Math.round(y + tagHeight / 2));
     ctx.restore();
 
     const textX = x + tagWidth + Math.round((1.4 * LABEL_CANVAS_DPI) / 25.4);
     const maxWidth = textRight - textX;
-    const lines = labelFoodLines(ctx, text, labelFont(6.7, 400), maxWidth);
+    const lines = labelFoodLines(ctx, text, labelFont(6.7, 700), maxWidth);
     ctx.save();
     ctx.fillStyle = colors.ink;
-    ctx.font = labelFont(6.7, 400);
+    ctx.font = labelFont(6.7, 700);
     ctx.fillText(lines[0] || "", Math.round(textX), Math.round(y + rowHeight * (lines.length > 1 ? 0.34 : 0.68)));
     if (lines[1]) ctx.fillText(lines[1], Math.round(textX), Math.round(y + rowHeight * 0.82));
     ctx.restore();
@@ -3354,11 +3360,11 @@
     labelRoundRect(ctx, x, y, width, height, Math.round(height * 0.2), { stroke: colors.border, width: 2 });
     const labelWidth = Math.round((11.4 * LABEL_CANVAS_DPI) / 25.4);
     labelLine(ctx, x + labelWidth, y, x + labelWidth, y + height, 1, colors.border);
-    labelText(ctx, label, x + labelWidth / 2, y + Math.round(height * 0.63), 5.35, 400, colors.ink, "center");
+    labelText(ctx, label, x + labelWidth / 2, y + Math.round(height * 0.63), 5.35, 700, colors.ink, "center");
     const bodyX = x + labelWidth + Math.round((1.2 * LABEL_CANVAS_DPI) / 25.4);
     ctx.save();
     ctx.fillStyle = colors.ink;
-    ctx.font = labelFont(strong ? 5.9 : 5.7, strong ? 800 : 400);
+    ctx.font = labelFont(strong ? 5.9 : 5.7, strong ? 900 : 700);
     ctx.fillText(fitCanvasText(ctx, text, width - (bodyX - x) - Math.round((1.0 * LABEL_CANVAS_DPI) / 25.4)), Math.round(bodyX), Math.round(y + height * 0.6));
     ctx.restore();
   }
