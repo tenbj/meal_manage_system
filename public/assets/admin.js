@@ -268,28 +268,98 @@
       return { category, name };
     })
     .filter((item) => item.name && CATEGORIES.includes(item.category));
-  const RANDOM_DISH_BLUEPRINTS = {
-    荤: {
-      flavors: ["葱香", "黑椒", "番茄", "香煎", "酱香", "柠檬", "咖喱"],
-      mains: ["鸡腿丁", "鸡胸丁", "里脊片", "牛肉粒", "鸡柳", "肉末豆腐"],
-      sides: ["口蘑", "彩椒", "藕丁", "西芹", "杏鲍菇", "南瓜粒"],
-    },
-    海鲜: {
-      flavors: ["葱姜", "蒜香", "番茄", "清蒸", "香煎", "酱烧", "柠香"],
-      mains: ["虾仁", "鲈鱼块", "巴沙鱼块", "龙利鱼", "鲜贝", "蛤蜊肉"],
-      sides: ["芦笋", "西葫芦", "黄瓜", "彩椒", "荷兰豆", "娃娃菜"],
-    },
-    素: {
-      flavors: ["蒜香", "蚝油", "清炒", "醋香", "干锅", "番茄", "家常"],
-      mains: ["西兰花", "小白菜", "菜心", "花菜", "杏鲍菇", "西葫芦", "莲藕"],
-      sides: ["胡萝卜", "木耳", "口蘑", "百合", "荷兰豆", "彩椒"],
-    },
-    主食: {
-      flavors: ["杂粮", "燕麦", "藜麦", "红米", "小米", "玉米", "南瓜"],
-      mains: ["米饭", "红薯拼", "紫薯拼", "饭团", "饭", "玉米段"],
-      sides: ["贝贝南瓜", "红薯", "紫薯", "糙米", "藜麦", "玉米"],
-    },
-  };
+  const RANDOM_HOME_STYLE_DISH_TEXT = `
+荤|土豆胡萝卜烧鸡
+荤|香菇蒸鸡腿肉
+荤|豆角炒肉末
+荤|莲藕炒肉片
+荤|青椒炒鸡蛋
+荤|西葫芦炒鸡蛋
+荤|丝瓜炒蛋
+荤|番茄土豆炖牛肉
+荤|洋葱炒猪里脊
+荤|胡萝卜炒牛肉丝
+荤|豆腐蒸肉饼
+荤|冬瓜肉丸
+荤|白菜肉丸
+荤|圆白菜炒肉片
+荤|口蘑滑鸡片
+荤|胡萝卜鸡胸肉丁
+荤|黄瓜炒鸡丁
+荤|芹菜炒牛肉
+荤|腐竹烧肉片
+荤|香菇蒸肉饼
+荤|青笋炒鸡片
+荤|土豆焖牛腩
+荤|番茄鸡蛋牛肉片
+荤|香菇鸡肉饼
+荤|木耳炒鸡蛋
+海鲜|冬瓜虾仁
+海鲜|丝瓜虾仁
+海鲜|虾仁炒鸡蛋
+海鲜|虾仁豆腐煲
+海鲜|番茄鱼片
+海鲜|葱姜黑鱼片
+海鲜|香煎鲈鱼块
+海鲜|清蒸多宝鱼
+海鲜|蒜蓉开背虾
+海鲜|韭黄炒虾仁
+海鲜|芦笋炒虾仁
+海鲜|葱油鳕鱼块
+海鲜|清蒸鳕鱼块
+海鲜|番茄巴沙鱼片
+海鲜|黄瓜炒虾仁
+海鲜|彩椒炒虾仁
+海鲜|蒜香龙利鱼块
+海鲜|干煎小黄鱼
+海鲜|香煎鳕鱼块
+海鲜|葱油龙利鱼
+素|清炒上海青
+素|蒜蓉油菜
+素|白菜炒木耳
+素|番茄炒花菜
+素|香菇扒油菜
+素|清炒生菜
+素|冬瓜炒木耳
+素|山药炒木耳
+素|黄瓜木耳炒腐竹
+素|西葫芦炒胡萝卜
+素|蚝油杏鲍菇
+素|家常烧豆腐
+素|芹菜木耳胡萝卜
+素|丝瓜炒毛豆
+素|蒜香菠菜
+素|清炒苋菜
+素|番茄豆腐
+素|白菜烧豆腐
+素|香菇炒青菜
+素|清炒冬瓜
+素|蒜香豇豆
+素|胡萝卜炒包菜
+素|清炒芥蓝
+主食|白米饭
+主食|荞麦饭
+主食|紫米饭
+主食|红豆杂粮饭
+主食|绿豆杂粮饭
+主食|南瓜小米饭
+主食|玉米糙米饭
+主食|黑米糙米饭
+主食|小米南瓜饭
+主食|山药米饭
+主食|红薯玉米拼
+主食|紫薯南瓜拼
+主食|燕麦糙米饭
+主食|藜麦糙米饭
+主食|玉米小米饭
+`.trim();
+  const RANDOM_HOME_STYLE_DISHES = RANDOM_HOME_STYLE_DISH_TEXT
+    .split("\n")
+    .map((line) => {
+      const [category, name] = line.split("|").map((part) => part.trim());
+      return { category, name };
+    })
+    .filter((item) => item.name && CATEGORIES.includes(item.category));
 
   let state = loadState();
   let currentFormSubmit = null;
@@ -2340,7 +2410,7 @@
       const record = autoBuildDish(item.name, item.category);
       record.notes = item.fromLibrary
         ? "随机从 I04 食谱库补入，营养按系统基础规则估算，可编辑校准。"
-        : "随机生成菜品，营养按系统基础规则估算，可编辑校准。";
+        : "随机从中式家常候选池补入，营养按系统基础规则估算，可编辑校准。";
       upsert(state.dishes, record);
     });
     saveState();
@@ -2359,26 +2429,14 @@
         existingNames.add(dishNameKey(item.name));
       });
 
-    let attempts = 0;
-    while (picked.length < count && attempts < 500) {
-      attempts += 1;
-      const category = CATEGORIES[(picked.length + attempts) % CATEGORIES.length];
-      const item = makeRandomDishCandidate(category);
-      const key = dishNameKey(item.name);
-      if (existingNames.has(key)) continue;
-      existingNames.add(key);
-      picked.push(item);
-    }
+    shuffle([...RANDOM_HOME_STYLE_DISHES])
+      .filter((item) => !existingNames.has(dishNameKey(item.name)))
+      .slice(0, count - picked.length)
+      .forEach((item) => {
+        picked.push({ ...item, fromLibrary: false });
+        existingNames.add(dishNameKey(item.name));
+      });
     return picked;
-  }
-
-  function makeRandomDishCandidate(category) {
-    const blueprint = RANDOM_DISH_BLUEPRINTS[category] || RANDOM_DISH_BLUEPRINTS.素;
-    const flavor = randomFrom(blueprint.flavors);
-    const main = randomFrom(blueprint.mains);
-    const side = randomFrom(blueprint.sides);
-    const name = category === "主食" ? `${flavor}${main}` : `${flavor}${main}${side}`;
-    return { name, category, fromLibrary: false };
   }
 
   function shuffle(items) {
@@ -2386,10 +2444,6 @@
       .map((item) => ({ item, sort: Math.random() }))
       .sort((a, b) => a.sort - b.sort)
       .map(({ item }) => item);
-  }
-
-  function randomFrom(items) {
-    return items[Math.floor(Math.random() * items.length)];
   }
 
   function autoBuildDish(name, categoryOverride = "") {
