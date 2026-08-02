@@ -90,32 +90,206 @@
     { id: "logistics", title: "标签与配送", icon: "配" },
     { id: "posters", title: "服务总结海报", icon: "海" },
   ];
-  const WEEKLY_RECIPE_TEMPLATE = [
-    {
-      lunch: { 荤: "板栗炖鸡", 海鲜: "番茄龙利鱼", 素: "蒜蓉西兰花胡萝卜", 主食: "米饭" },
-      dinner: { 荤: "柠檬手撕鸡", 海鲜: "葱姜蛏子", 素: "手撕包菜胡萝卜", 主食: "玉米" },
+  const RECIPE_LIBRARY_DISH_TEXT = `
+荤|青椒酿肉
+荤|公瑾爆蛋
+荤|可乐鸡翅
+荤|番茄烧牛腩
+荤|糖醋排骨
+荤|茄汁鸡丁
+荤|照烧鸡腿排
+荤|家常豆腐肉末
+荤|香菇豆腐肉末
+荤|香菇滑鸡
+荤|土豆烧鸡块
+荤|葱香鸡腿土豆丁
+荤|黑椒杏鲍菇牛柳
+荤|番茄炒蛋
+荤|咸蛋黄鸡翅
+荤|葱爆牛肉
+荤|黑椒鸡腿丁
+荤|黑椒鸡腿口蘑
+荤|香煎鸡胸杏鲍菇
+荤|葱香鸡肉藕丁
+荤|洋葱滑蛋牛肉
+荤|彩椒牛肉粒
+荤|葱姜鸡腿肉
+荤|番茄肉末豆腐
+荤|酱香鸡翅根
+荤|蒜香小排
+荤|西芹百合炒鸡丁
+荤|柠檬葱香鸡腿丁
+荤|蒜苗牛肉豆干
+荤|香菇腐竹鸡片
+荤|番茄里脊豆腐
+荤|香煎牛柳芋头粒
+荤|南瓜蒸鸡胸丁
+荤|茄汁鸡丁腐竹
+荤|黑椒猪里脊杏鲍菇
+荤|板栗炖鸡
+荤|咖喱鸡肉
+荤|咖喱牛肉
+荤|辣鸡爪
+荤|擂椒皮蛋
+荤|蒜薹炒肉
+荤|泡椒鸡杂
+荤|青椒肉丝
+荤|蒸排骨
+荤|韭菜鸡蛋
+荤|莴笋炒蛋
+荤|清蒸牛肋条
+荤|金针菇培根卷
+荤|孜然牛肉
+荤|孜然羊肉
+荤|爆炒猪肝
+荤|柠檬手撕鸡
+荤|牛肉杏鲍菇
+荤|青椒豆芽炒蛋
+荤|葱烧鸡腿菌菇
+荤|番茄牛肉滑蛋
+荤|青椒豆干肉片
+荤|酱香里脊藕丁
+荤|黑椒土豆牛肉粒
+荤|洋葱鸡蛋肉末
+荤|西芹豆干鸡柳
+荤|香煎猪里脊南瓜粒
+海鲜|清蒸鲈鱼
+海鲜|葱姜蛏子
+海鲜|白灼虾
+海鲜|番茄虾仁炒蛋
+海鲜|葱油黄鱼
+海鲜|蒜蓉生蚝
+海鲜|香煎带鱼
+海鲜|清蒸鲳鱼
+海鲜|蒜蓉粉丝扇贝
+海鲜|酱烧黑鱼片
+海鲜|姜葱花螺
+海鲜|葱油巴沙鱼
+海鲜|清蒸黄鱼
+海鲜|葱油鲈鱼块
+海鲜|蒜蓉扇贝肉
+海鲜|葱姜鲈鱼块
+海鲜|黄瓜虾仁
+海鲜|蒜香鲳鱼块
+海鲜|葱姜蛤蜊肉
+海鲜|酱烧巴沙鱼
+海鲜|葱油鲜贝
+海鲜|蒜香虾仁
+海鲜|香煎龙利鱼
+海鲜|葱姜蛏子彩椒
+海鲜|白灼虾仁甜豌豆
+海鲜|香煎带鱼冬瓜
+海鲜|蒜蓉扇贝西兰花
+海鲜|葱姜花蛤莴笋
+海鲜|清蒸鲈鱼芦笋
+海鲜|蒜香虾仁西葫芦
+海鲜|酱烧巴沙鱼彩椒
+海鲜|葱油龙利鱼黄瓜
+海鲜|番茄龙利鱼
+海鲜|蛤蜊煎蛋
+海鲜|虾滑娃娃菜
+海鲜|葱油海瓜子
+海鲜|葱姜虾仁芦笋
+海鲜|番茄鲈鱼块
+海鲜|酱烧黄鱼块
+海鲜|柠香巴沙鱼块
+海鲜|鲜贝炒荷兰豆
+素|干锅花菜
+素|清炒空心菜
+素|蚝油油麦菜
+素|蒜蓉茼蒿
+素|山药木耳荷兰豆
+素|蒜香西兰花
+素|蒜蓉西兰花胡萝卜
+素|手撕包菜
+素|手撕包菜胡萝卜
+素|醋溜藕片
+素|醋溜藕片木耳
+素|鱼香茄子
+素|清炒莴笋胡萝卜
+素|清炒芦笋口蘑
+素|蒜蓉娃娃菜
+素|蚝油生菜
+素|荷塘小炒
+素|醋溜土豆丝
+素|干锅杏鲍菇青椒
+素|清炒菠菜
+素|蒜蓉空心菜
+素|蒜香四季豆胡萝卜
+素|蒜蓉油麦菜
+素|木耳炒西葫芦
+素|清炒广东菜心
+素|清炒菜心口蘑
+素|口蘑西兰花
+素|蒜香小白菜
+素|蒜香小白菜香菇
+素|紫甘蓝口蘑快炒
+素|秋葵莲藕木耳
+素|蒜蓉娃娃菜金针菇
+素|西兰花百合胡萝卜
+素|醋香紫甘蓝莴笋
+素|蚝油菜心香菇
+素|蒜蓉娃娃菜口蘑
+素|手撕包菜木耳胡萝卜
+素|蒜香小白菜口蘑
+素|干锅花菜香菇
+素|菠菜金针菇胡萝卜
+素|凉拌菠菜金针菇
+素|干煸豆角
+素|地三鲜
+素|土豆炖茄子
+素|番茄西葫芦木耳
+素|蚝油芥蓝口蘑
+素|醋香白菜木耳
+素|干香茶树菇豆角
+素|彩椒杏鲍菇
+素|西芹百合木耳
+素|茄汁花菜豆腐
+主食|丝苗米饭
+主食|糙米饭
+主食|燕麦米饭
+主食|藜麦饭
+主食|黑米饭
+主食|杂粮饭
+主食|小米米饭
+主食|红米饭
+主食|红薯
+主食|紫薯
+主食|玉米段
+主食|玉米红薯拼
+主食|贝贝南瓜
+主食|玉米紫薯拼
+主食|玉米南瓜拼
+`.trim();
+  const RECIPE_LIBRARY_DISHES = RECIPE_LIBRARY_DISH_TEXT
+    .split("\n")
+    .map((line) => {
+      const [category, name] = line.split("|").map((part) => part.trim());
+      return { category, name };
+    })
+    .filter((item) => item.name && CATEGORIES.includes(item.category));
+  const RANDOM_DISH_BLUEPRINTS = {
+    荤: {
+      flavors: ["葱香", "黑椒", "番茄", "香煎", "酱香", "柠檬", "咖喱"],
+      mains: ["鸡腿丁", "鸡胸丁", "里脊片", "牛肉粒", "鸡柳", "肉末豆腐"],
+      sides: ["口蘑", "彩椒", "藕丁", "西芹", "杏鲍菇", "南瓜粒"],
     },
-    {
-      lunch: { 荤: "青椒肉丝", 海鲜: "蛤蜊煎蛋", 素: "干煸豆角", 主食: "糙米饭" },
-      dinner: { 荤: "葱姜鸡腿肉", 海鲜: "葱油龙利鱼黄瓜", 素: "蒜蓉娃娃菜口蘑", 主食: "玉米" },
+    海鲜: {
+      flavors: ["葱姜", "蒜香", "番茄", "清蒸", "香煎", "酱烧", "柠香"],
+      mains: ["虾仁", "鲈鱼块", "巴沙鱼块", "龙利鱼", "鲜贝", "蛤蜊肉"],
+      sides: ["芦笋", "西葫芦", "黄瓜", "彩椒", "荷兰豆", "娃娃菜"],
     },
-    {
-      lunch: { 荤: "香煎鸡胸", 海鲜: "清蒸鳕鱼", 素: "荷兰豆木耳", 主食: "紫薯块" },
-      dinner: { 荤: "番茄牛肉", 海鲜: "柠檬巴沙鱼", 素: "彩椒西葫芦", 主食: "藜麦南瓜饭" },
+    素: {
+      flavors: ["蒜香", "蚝油", "清炒", "醋香", "干锅", "番茄", "家常"],
+      mains: ["西兰花", "小白菜", "菜心", "花菜", "杏鲍菇", "西葫芦", "莲藕"],
+      sides: ["胡萝卜", "木耳", "口蘑", "百合", "荷兰豆", "彩椒"],
     },
-    {
-      lunch: { 荤: "黑椒鸡腿丁", 海鲜: "虾仁西兰花", 素: "芦笋口蘑", 主食: "荞麦面" },
-      dinner: { 荤: "低脂牛肉丸", 海鲜: "清蒸龙利鱼", 素: "清炒菠菜", 主食: "玉米" },
+    主食: {
+      flavors: ["杂粮", "燕麦", "藜麦", "红米", "小米", "玉米", "南瓜"],
+      mains: ["米饭", "红薯拼", "紫薯拼", "饭团", "饭", "玉米段"],
+      sides: ["贝贝南瓜", "红薯", "紫薯", "糙米", "藜麦", "玉米"],
     },
-    {
-      lunch: { 荤: "黑椒里脊", 海鲜: "葱油蛏子", 素: "蒜蓉娃娃菜口蘑", 主食: "糙米饭" },
-      dinner: { 荤: "番茄鸡腿肉", 海鲜: "蛤蜊煎蛋", 素: "香菇青菜", 主食: "红薯" },
-    },
-    {
-      lunch: { 荤: "板栗炖鸡", 海鲜: "清蒸巴沙鱼", 素: "手撕包菜胡萝卜", 主食: "米饭" },
-      dinner: { 荤: "柠檬手撕鸡", 海鲜: "葱油龙利鱼黄瓜", 素: "西葫芦口蘑", 主食: "玉米" },
-    },
-  ];
+  };
 
   let state = loadState();
   let currentFormSubmit = null;
@@ -556,8 +730,14 @@
       dishItem.fat = nutrition.fat;
       dishItem.carbs = nutrition.carbs;
       dishItem.source = nutrition.source;
+      if (!Array.isArray(dishItem.ingredients) || !dishItem.ingredients.length) {
+        dishItem.ingredients = inferDishIngredients(cleanName, dishItem.category);
+      }
+      if (!Array.isArray(dishItem.conflicts) || !dishItem.conflicts.length) {
+        dishItem.conflicts = inferDishConflicts(cleanName, dishItem.ingredients);
+      }
       if (dishItem.notes?.includes("本地原型自动估算")) dishItem.notes = "";
-      const key = `${dishItem.category}|${cleanName}`;
+      const key = dishNameKey(cleanName);
       if (byKey.has(key)) {
         idMap[dishItem.id] = byKey.get(key).id;
         return;
@@ -567,6 +747,48 @@
     });
     if (Object.keys(idMap).length) remapDishReferences(idMap);
     state.dishes = normalized;
+    mergeRecipeLibraryDishes();
+  }
+
+  function mergeRecipeLibraryDishes() {
+    const byName = new Map();
+    state.dishes.forEach((dishItem) => byName.set(dishNameKey(dishItem.name), dishItem));
+    RECIPE_LIBRARY_DISHES.forEach((libraryDish) => {
+      const key = dishNameKey(libraryDish.name);
+      const existing = byName.get(key);
+      if (existing) {
+        if (!CATEGORIES.includes(existing.category)) existing.category = libraryDish.category;
+        return;
+      }
+      const record = buildDishFromLibrary(libraryDish);
+      state.dishes.push(record);
+      byName.set(key, record);
+    });
+  }
+
+  function buildDishFromLibrary(libraryDish) {
+    const record = autoBuildDish(libraryDish.name, libraryDish.category);
+    record.id = uniqueDishId(stableDishId(record.name, record.category));
+    record.notes = "来自 I04 食谱库，营养按系统基础规则估算，可编辑校准。";
+    return record;
+  }
+
+  function stableDishId(name, category) {
+    return `dish_lib_${hashCode(`${category}|${dishNameKey(name)}`).toString(36)}`;
+  }
+
+  function uniqueDishId(baseId) {
+    let id = baseId;
+    let index = 2;
+    while (state.dishes.some((item) => item.id === id)) {
+      id = `${baseId}_${index}`;
+      index += 1;
+    }
+    return id;
+  }
+
+  function dishNameKey(name) {
+    return stripWeeklyMarker(name).replace(/\s+/g, "").toLowerCase();
   }
 
   function remapDishReferences(idMap) {
@@ -1007,6 +1229,7 @@
     return {
       actions: `
         ${btn("+", "新增菜品", "open-dish-new", "primary")}
+        ${btn("随", "随机新增10个", "add-random-dishes")}
       `,
       body: `
         <div class="table-panel">
@@ -1719,6 +1942,7 @@
       },
       "poster-from-order": () => openPosterFromOrder(target.dataset.id),
       "open-dish-new": () => openDishModal(),
+      "add-random-dishes": () => addRandomDishes(),
       "open-dish-edit": () => openDishModal(target.dataset.id),
       "delete-dish": () => deleteDish(target.dataset.id),
       "toggle-dish-available": () => toggleDishAvailable(target.dataset.id),
@@ -2106,6 +2330,68 @@
     });
   }
 
+  function addRandomDishes(count = 10) {
+    const candidates = randomDishCandidates(count);
+    if (!candidates.length) {
+      toast("暂时没有可新增的菜品。");
+      return;
+    }
+    candidates.forEach((item) => {
+      const record = autoBuildDish(item.name, item.category);
+      record.notes = item.fromLibrary
+        ? "随机从 I04 食谱库补入，营养按系统基础规则估算，可编辑校准。"
+        : "随机生成菜品，营养按系统基础规则估算，可编辑校准。";
+      upsert(state.dishes, record);
+    });
+    saveState();
+    toast(`已随机新增 ${candidates.length} 个菜品。`);
+    render();
+  }
+
+  function randomDishCandidates(count) {
+    const existingNames = new Set(state.dishes.map((dishItem) => dishNameKey(dishItem.name)));
+    const picked = [];
+    shuffle([...RECIPE_LIBRARY_DISHES])
+      .filter((item) => !existingNames.has(dishNameKey(item.name)))
+      .slice(0, count)
+      .forEach((item) => {
+        picked.push({ ...item, fromLibrary: true });
+        existingNames.add(dishNameKey(item.name));
+      });
+
+    let attempts = 0;
+    while (picked.length < count && attempts < 500) {
+      attempts += 1;
+      const category = CATEGORIES[(picked.length + attempts) % CATEGORIES.length];
+      const item = makeRandomDishCandidate(category);
+      const key = dishNameKey(item.name);
+      if (existingNames.has(key)) continue;
+      existingNames.add(key);
+      picked.push(item);
+    }
+    return picked;
+  }
+
+  function makeRandomDishCandidate(category) {
+    const blueprint = RANDOM_DISH_BLUEPRINTS[category] || RANDOM_DISH_BLUEPRINTS.素;
+    const flavor = randomFrom(blueprint.flavors);
+    const main = randomFrom(blueprint.mains);
+    const side = randomFrom(blueprint.sides);
+    const name = category === "主食" ? `${flavor}${main}` : `${flavor}${main}${side}`;
+    return { name, category, fromLibrary: false };
+  }
+
+  function shuffle(items) {
+    return items
+      .map((item) => ({ item, sort: Math.random() }))
+      .sort((a, b) => a.sort - b.sort)
+      .map(({ item }) => item);
+  }
+
+  function randomFrom(items) {
+    return items[Math.floor(Math.random() * items.length)];
+  }
+
   function autoBuildDish(name, categoryOverride = "") {
     const cleanName = String(name || "").trim();
     const category = categoryOverride || inferDishCategory(cleanName);
@@ -2208,7 +2494,7 @@
     const dates = nextServiceDates(startDate, 6);
     const existing = dates.filter((date) => getRecipe(date));
     if (existing.length) {
-      confirmAction(`这 6 天里已有 ${existing.length} 天食谱，重新生成会覆盖这些日期的午餐和晚餐食谱。`, () => {
+      confirmAction(`这 6 天里已有 ${existing.length} 天食谱，再次生成会覆盖 ${dates[0]} 至 ${dates.at(-1)} 的 6 天午晚餐食谱，并尽量避开之前用过的菜品。`, () => {
         createWeeklyRecipes(startDate, true);
       });
       return;
@@ -2218,16 +2504,17 @@
 
   function createWeeklyRecipes(startDate, force) {
     const dates = nextServiceDates(startDate, 6);
-    dates.forEach((date, dayIndex) => generateRecipeForPlan(date, force, dayIndex));
+    const previousDishIds = force ? new Set(dates.flatMap((date) => recipeDishIds(getRecipe(date)))) : new Set();
+    const usedDishIds = new Set();
+    dates.forEach((date, dayIndex) => generateRecipeForPlan(date, force, dayIndex, { previousDishIds, usedDishIds }));
     saveState();
-    toast(`已生成 ${dates[0]} 至 ${dates.at(-1)} 的 6 天食谱，共 12 套午晚餐。`);
+    toast(`已生成 ${dates[0]} 至 ${dates.at(-1)} 的 6 天食谱，共 12 套午晚餐${force ? "，已尽量避开原 6 天菜品" : ""}。`);
     render();
   }
 
-  function generateRecipeForPlan(date, force, dayIndex = 0) {
+  function generateRecipeForPlan(date, force, dayIndex = 0, options = {}) {
     if (force) state.recipes = state.recipes.filter((recipe) => recipe.date !== date);
     if (getRecipe(date)) return;
-    const plan = WEEKLY_RECIPE_TEMPLATE[dayIndex % WEEKLY_RECIPE_TEMPLATE.length];
     const recipe = {
       id: uid("recipe"),
       date,
@@ -2240,13 +2527,49 @@
     };
     ["lunch", "dinner"].forEach((meal, mealIndex) => {
       CATEGORIES.forEach((category, categoryIndex) => {
-        const name = plan?.[meal]?.[category];
-        const dishItem = name ? ensureDishByName(name, category) : null;
+        const dishItem = pickRecipeDish({
+          date,
+          meal,
+          category,
+          seedOffset: dayIndex + mealIndex + categoryIndex,
+          previousDishIds: options.previousDishIds,
+          usedDishIds: options.usedDishIds,
+        });
         recipe.meals[meal].categories[category] = dishItem?.id || "";
+        if (dishItem?.id) options.usedDishIds?.add(dishItem.id);
       });
-      limitGarlicDishes(recipe, meal);
+      limitGarlicDishes(recipe, meal, options);
     });
     state.recipes.push(recipe);
+  }
+
+  function pickRecipeDish(config) {
+    const {
+      date = "",
+      meal = "",
+      category,
+      seedOffset = 0,
+      previousDishIds = new Set(),
+      usedDishIds = new Set(),
+      excludeDishIds = new Set(),
+      avoidGarlic = false,
+    } = config;
+    const available = state.dishes.filter((item) => item.category === category && item.available);
+    const fallback = state.dishes.filter((item) => item.category === category);
+    const groups = [
+      available.filter((item) => !previousDishIds.has(item.id) && !usedDishIds.has(item.id) && !excludeDishIds.has(item.id) && (!avoidGarlic || !item.garlic)),
+      available.filter((item) => !previousDishIds.has(item.id) && !excludeDishIds.has(item.id) && (!avoidGarlic || !item.garlic)),
+      available.filter((item) => !usedDishIds.has(item.id) && !excludeDishIds.has(item.id) && (!avoidGarlic || !item.garlic)),
+      available.filter((item) => !excludeDishIds.has(item.id) && (!avoidGarlic || !item.garlic)),
+      fallback.filter((item) => !previousDishIds.has(item.id) && !usedDishIds.has(item.id) && !excludeDishIds.has(item.id) && (!avoidGarlic || !item.garlic)),
+      fallback.filter((item) => !excludeDishIds.has(item.id) && (!avoidGarlic || !item.garlic)),
+      fallback.filter((item) => !excludeDishIds.has(item.id)),
+      fallback,
+    ];
+    const list = groups.find((items) => items.length) || [];
+    if (!list.length) return null;
+    const index = (hashCode(`${date}-${meal}-${category}-${seedOffset}`) + seedOffset) % list.length;
+    return list[index];
   }
 
   function ensureDishByName(name, category) {
@@ -2378,12 +2701,26 @@
     return assigned;
   }
 
-  function limitGarlicDishes(recipe, meal) {
+  function limitGarlicDishes(recipe, meal, options = {}) {
     const garlicDishes = CATEGORIES.map((category) => getDish(recipe.meals[meal].categories[category])).filter((item) => item?.garlic);
     if (garlicDishes.length <= 1) return;
     garlicDishes.slice(1).forEach((dishItem) => {
-      const replacement = state.dishes.find((item) => item.category === dishItem.category && item.available && !item.garlic && item.id !== dishItem.id);
-      if (replacement) recipe.meals[meal].categories[dishItem.category] = replacement.id;
+      const excludeDishIds = new Set(recipeDishIds(recipe));
+      excludeDishIds.delete(dishItem.id);
+      const replacement = pickRecipeDish({
+        date: recipe.date,
+        meal,
+        category: dishItem.category,
+        seedOffset: hashCode(dishItem.id),
+        previousDishIds: options.previousDishIds,
+        usedDishIds: options.usedDishIds,
+        excludeDishIds,
+        avoidGarlic: true,
+      });
+      if (replacement) {
+        recipe.meals[meal].categories[dishItem.category] = replacement.id;
+        options.usedDishIds?.add(replacement.id);
+      }
     });
   }
 
