@@ -1036,7 +1036,7 @@
         <td>${dishItem.kcal100} kcal / 100g</td>
         <td>${dishItem.garlic ? badge("含蒜", "amber") : badge("无蒜味", "gray")}</td>
         <td>${dishItem.available ? badge("可用", "green") : badge("今日不可用", "red")}</td>
-        <td>${escapeHtml(dishItem.source || "未填写")}</td>
+        <td>${nutritionSourceCell(dishItem)}</td>
         <td>
           <div class="cell-actions">
             ${btn("换", dishItem.available ? "标记不可用" : "恢复可用", "toggle-dish-available", "small", `data-id="${dishItem.id}"`)}
@@ -1047,6 +1047,67 @@
       </tr>`)
       .join("");
     return table(["菜名", "分类", "主要食材", "熟重单位热量", "蒜味", "状态", "热量出处", "操作"], rows);
+  }
+
+  function nutritionSourceCell(dishItem) {
+    if (!dishItem.source) return escapeHtml("未填写");
+    const lookupTerm = nutritionLookupTerm(dishItem);
+    const href = nutritionSourceHref(dishItem, lookupTerm);
+    const title = `打开来源并定位到「${lookupTerm}」的热量查询`;
+    return `<a class="source-link" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">${escapeHtml(dishItem.source)}<span class="source-link-icon" aria-hidden="true">↗</span></a>`;
+  }
+
+  function nutritionSourceHref(dishItem, lookupTerm) {
+    const source = String(dishItem.source || "");
+    if (/USDA|FoodData/i.test(source)) {
+      return `https://fdc.nal.usda.gov/food-search?query=${encodeURIComponent(nutritionLookupTermEn(dishItem) || lookupTerm)}`;
+    }
+    if (/薄荷|Boohee/i.test(source)) {
+      return `https://www.boohee.com/shiwu/search?keyword=${encodeURIComponent(lookupTerm)}`;
+    }
+    if (/中国营养学会|中国疾控|中国食物成分表|食物营养成分查询平台/.test(source)) {
+      return `https://nlc.chinanutri.cn/fq/foodlist_${encodeURIComponent(lookupTerm)}_0_0_0_0_1.htm`;
+    }
+    return `https://www.baidu.com/s?wd=${encodeURIComponent(`${lookupTerm} ${source} 热量`)}`;
+  }
+
+  function nutritionLookupTerm(dishItem) {
+    return matchedNutritionTerm(dishItem)?.zh || dishItem.name;
+  }
+
+  function nutritionLookupTermEn(dishItem) {
+    return matchedNutritionTerm(dishItem)?.en || "";
+  }
+
+  function matchedNutritionTerm(dishItem) {
+    const text = `${dishItem.name || ""} ${(dishItem.ingredients || []).join(" ")}`;
+    const rules = [
+      [/鸡胸|手撕鸡|鸡肉/, { zh: "鸡胸肉", en: "chicken breast cooked" }],
+      [/鸡腿/, { zh: "鸡腿肉", en: "chicken thigh cooked" }],
+      [/里脊|猪/, { zh: "猪里脊", en: "pork tenderloin cooked" }],
+      [/牛肉|牛肉丸/, { zh: "牛肉", en: "beef cooked" }],
+      [/龙利鱼/, { zh: "龙利鱼", en: "sole fish cooked" }],
+      [/鳕鱼/, { zh: "鳕鱼", en: "cod cooked" }],
+      [/巴沙鱼/, { zh: "巴沙鱼", en: "basa fish cooked" }],
+      [/虾仁|虾/, { zh: "虾", en: "shrimp cooked" }],
+      [/蛏|蛤蜊|蛤/, { zh: "蛤蜊", en: "clam cooked" }],
+      [/煎蛋|鸡蛋/, { zh: "鸡蛋", en: "egg cooked" }],
+      [/米饭/, { zh: "米饭", en: "rice cooked" }],
+      [/糙米/, { zh: "糙米饭", en: "brown rice cooked" }],
+      [/玉米/, { zh: "玉米", en: "corn cooked" }],
+      [/紫薯/, { zh: "紫薯", en: "purple sweet potato cooked" }],
+      [/红薯/, { zh: "红薯", en: "sweet potato cooked" }],
+      [/荞麦/, { zh: "荞麦面", en: "buckwheat noodles cooked" }],
+      [/藜麦/, { zh: "藜麦", en: "quinoa cooked" }],
+      [/南瓜/, { zh: "南瓜", en: "pumpkin cooked" }],
+      [/西兰花/, { zh: "西兰花", en: "broccoli cooked" }],
+      [/娃娃菜|包菜|生菜|小白菜|青菜/, { zh: "青菜", en: "bok choy cooked" }],
+      [/豆角/, { zh: "豆角", en: "green beans cooked" }],
+      [/菠菜/, { zh: "菠菜", en: "spinach cooked" }],
+      [/口蘑|香菇|木耳|荷兰豆|芦笋|西葫芦|黄瓜|胡萝卜|番茄|彩椒/, { zh: dishItem.ingredients?.[0] || dishItem.name, en: "" }],
+      [/豆腐/, { zh: "豆腐", en: "tofu" }],
+    ];
+    return rules.find(([pattern]) => pattern.test(text))?.[1] || null;
   }
 
   function renderRecipes() {
