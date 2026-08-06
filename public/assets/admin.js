@@ -2978,7 +2978,7 @@
       const group = groups.find((entry) => entry.categories.includes(dishItem.category));
       if (group) group.items.push(`${dishItem.name}${item.grams}g`);
     });
-    return groups.filter((group) => group.items.length).map((group) => ({ label: group.label, text: group.items.join(" | ") }));
+    return groups.filter((group) => group.items.length).map((group) => ({ label: group.label, text: group.items.join("\n") }));
   }
 
   function portionLabel(kcal, grams) {
@@ -3310,24 +3310,42 @@
 
     const textX = x + tagWidth + Math.round((1.4 * LABEL_CANVAS_DPI) / 25.4);
     const maxWidth = textRight - textX;
-    const lines = labelFoodLines(ctx, text, labelFont(6.7, 400), maxWidth);
+    const foodFont = labelFont(6.7, 400);
+    const lineHeight = pt(7.0);
+    const maxLines = Math.max(1, Math.floor(rowHeight / lineHeight));
+    const lines = labelFoodLines(ctx, text, foodFont, maxWidth, maxLines);
     ctx.save();
     ctx.fillStyle = colors.ink;
-    ctx.font = labelFont(6.7, 400);
-    ctx.fillText(lines[0] || "", Math.round(textX), Math.round(y + rowHeight * (lines.length > 1 ? 0.34 : 0.68)));
-    if (lines[1]) ctx.fillText(lines[1], Math.round(textX), Math.round(y + rowHeight * 0.82));
+    ctx.font = foodFont;
+    ctx.textBaseline = "middle";
+    const firstLineY = y + rowHeight / 2 - ((lines.length - 1) * lineHeight) / 2;
+    lines.forEach((line, index) => {
+      ctx.fillText(line, Math.round(textX), Math.round(firstLineY + index * lineHeight));
+    });
     ctx.restore();
     return y + rowHeight;
   }
 
-  function labelFoodLines(ctx, text, fontValue, maxWidth) {
-    const raw = String(text || "-");
+  function labelFoodItems(text) {
+    return String(text || "")
+      .split(/\r?\n|\|/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function labelFoodLines(ctx, text, fontValue, maxWidth, maxLines = 2) {
+    const limit = Math.max(1, maxLines);
+    const parts = labelFoodItems(text);
+    const raw = parts[0] || "-";
     ctx.save();
     ctx.font = fontValue;
-    const parts = raw.split("|").map((item) => item.trim()).filter(Boolean);
-    if (parts.length === 2 && parts.every((part) => ctx.measureText(part).width <= maxWidth)) {
+    if (parts.length > 1) {
+      const splitLines = parts.map((part) => fitCanvasText(ctx, part, maxWidth));
+      if (splitLines.length > limit) {
+        splitLines.splice(limit - 1, splitLines.length - limit + 1, fitCanvasText(ctx, splitLines.slice(limit - 1).join(""), maxWidth));
+      }
       ctx.restore();
-      return parts;
+      return splitLines.slice(0, limit);
     }
     if (ctx.measureText(raw).width <= maxWidth) {
       ctx.restore();
@@ -3345,9 +3363,9 @@
       }
     }
     if (current) lines.push(current);
-    if (lines.length > 2) lines.splice(1, lines.length - 1, fitCanvasText(ctx, lines.slice(1).join(""), maxWidth));
+    if (lines.length > limit) lines.splice(limit - 1, lines.length - limit + 1, fitCanvasText(ctx, lines.slice(limit - 1).join(""), maxWidth));
     ctx.restore();
-    return lines.slice(0, 2);
+    return lines.slice(0, limit);
   }
 
   function drawManagementRow(ctx, label, text, x, y, width, height, pt, colors, strong) {
