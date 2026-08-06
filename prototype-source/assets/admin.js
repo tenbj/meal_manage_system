@@ -3227,17 +3227,14 @@
 
     const textX = x + tagWidth + Math.round((1.4 * LABEL_CANVAS_DPI) / 25.4);
     const maxWidth = textRight - textX;
-    const foodFont = labelFont(6.7, 400);
-    const lineHeight = pt(7.0);
-    const maxLines = Math.max(1, Math.floor(rowHeight / lineHeight));
-    const lines = labelFoodLines(ctx, text, foodFont, maxWidth, maxLines);
+    const layout = labelFoodLayout(ctx, text, maxWidth, rowHeight);
     ctx.save();
     ctx.fillStyle = colors.ink;
-    ctx.font = foodFont;
+    ctx.font = layout.font;
     ctx.textBaseline = "middle";
-    const firstLineY = y + rowHeight / 2 - ((lines.length - 1) * lineHeight) / 2;
-    lines.forEach((line, index) => {
-      ctx.fillText(line, Math.round(textX), Math.round(firstLineY + index * lineHeight));
+    const firstLineY = y + rowHeight / 2 - ((layout.lines.length - 1) * layout.lineHeight) / 2;
+    layout.lines.forEach((line, index) => {
+      ctx.fillText(line, Math.round(textX), Math.round(firstLineY + index * layout.lineHeight));
     });
     ctx.restore();
     return y + rowHeight;
@@ -3250,39 +3247,38 @@
       .filter(Boolean);
   }
 
-  function labelFoodLines(ctx, text, fontValue, maxWidth, maxLines = 2) {
-    const limit = Math.max(1, maxLines);
-    const parts = labelFoodItems(text);
-    const raw = parts[0] || "-";
+  function labelFoodLayout(ctx, text, maxWidth, rowHeight) {
+    const lines = labelFoodItems(text);
+    if (!lines.length) lines.push("-");
+    const sizePt = labelFoodFitSizePt(ctx, lines, maxWidth, rowHeight);
+    return {
+      lines,
+      font: labelFont(sizePt, 400),
+      lineHeight: labelFoodLineHeight(sizePt),
+    };
+  }
+
+  function labelFoodFitSizePt(ctx, lines, maxWidth, rowHeight) {
+    let low = 0.8;
+    let high = 6.7;
+    for (let index = 0; index < 14; index += 1) {
+      const mid = (low + high) / 2;
+      if (labelFoodFits(ctx, lines, mid, maxWidth, rowHeight)) low = mid;
+      else high = mid;
+    }
+    return low;
+  }
+
+  function labelFoodFits(ctx, lines, sizePt, maxWidth, rowHeight) {
     ctx.save();
-    ctx.font = fontValue;
-    if (parts.length > 1) {
-      const splitLines = parts.map((part) => fitCanvasText(ctx, part, maxWidth));
-      if (splitLines.length > limit) {
-        splitLines.splice(limit - 1, splitLines.length - limit + 1, fitCanvasText(ctx, splitLines.slice(limit - 1).join(""), maxWidth));
-      }
-      ctx.restore();
-      return splitLines.slice(0, limit);
-    }
-    if (ctx.measureText(raw).width <= maxWidth) {
-      ctx.restore();
-      return [raw];
-    }
-    const lines = [];
-    let current = "";
-    for (const char of raw) {
-      if (ctx.measureText(current + char).width > maxWidth && current) {
-        lines.push(current);
-        current = char;
-        if (lines.length === 1) continue;
-      } else {
-        current += char;
-      }
-    }
-    if (current) lines.push(current);
-    if (lines.length > limit) lines.splice(limit - 1, lines.length - limit + 1, fitCanvasText(ctx, lines.slice(limit - 1).join(""), maxWidth));
+    ctx.font = labelFont(sizePt, 400);
+    const fitsWidth = lines.every((line) => ctx.measureText(line).width <= maxWidth);
     ctx.restore();
-    return lines.slice(0, limit);
+    return fitsWidth && lines.length * labelFoodLineHeight(sizePt) <= rowHeight;
+  }
+
+  function labelFoodLineHeight(sizePt) {
+    return Math.max(1, Math.ceil((sizePt * LABEL_CANVAS_DPI / 72) * 1.08));
   }
 
   function drawManagementRow(ctx, label, text, x, y, width, height, pt, colors, strong) {
