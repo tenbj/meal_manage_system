@@ -1,0 +1,58 @@
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const assert = require('node:assert/strict');
+const D = require('../public/assets/merchant-domain');
+(async()=>{
+  const browser=await chromium.launch({headless:true});
+  const page=await browser.newPage({viewport:{width:1440,height:1080}});
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  require('node:fs').mkdirSync('tmp', {recursive:true});
+  await page.goto(process.env.MERCHANT_URL || 'http://localhost:3201');await page.getByRole('heading',{name:'今日出餐',exact:true}).waitFor();
+  await page.screenshot({path:'tmp/merchant-live.png',fullPage:true});
+  let s=D.initial(),rev=1;
+  s.settings.name='禾日健康小饭桌';
+  s.customers=[{id:'c1',name:'小林',restrictions:[],allergies:[],phone:'',address:''},{id:'c2',name:'小周',restrictions:[],allergies:[],phone:'',address:''}];
+  s.dishes=[['rice','杂粮饭','主食',120,120,['大米']],['chicken','番茄鸡肉','荤',150,150,['鸡肉','番茄']],['veg','清炒时蔬','素',180,60,['青菜']]].map(([id,name,category,grams,kcal,ingredients])=>({id,name,category,defaultGrams:grams,ingredients,nutrition:{source:'manual',basis:'cooked',kcal100:kcal,reference:'浏览器测试数据'}}));
+  const date=D.today();s.menus[`${date}:lunch`]=s.dishes.map(d=>({dishId:d.id,grams:d.defaultGrams}));
+  s.orders=s.customers.map((c,i)=>({id:`o${i}`,customerId:c.id,status:'服务中',serviceType:'包餐',startDate:date,endDate:date,credits:10,portions:1,meals:['lunch'],weekdays:[0,1,2,3,4,5,6]}));
+  await page.route('**/api/merchant',async route=>{
+    if(route.request().method()==='PUT'){
+      const body=route.request().postDataJSON();D.validate(body.state);assert.equal(body.revision,rev);s=body.state;rev++;
+      return route.fulfill({json:{ok:true,revision:rev}});
+    }
+    return route.fulfill({json:{state:s,revision:rev}});
+  });
+  await page.reload();await page.getByText('杂粮饭',{exact:true}).first().waitFor();
+  await page.screenshot({path:'tmp/merchant-desktop.png',fullPage:true});
+  assert.equal(await page.locator('nav button').count(),4);
+  await page.getByRole('button',{name:'＋ 加道菜'}).click();await page.getByLabel('搜索常用菜').fill('杂粮');
+  assert.equal(await page.locator('.pick-row:visible').count(),1);
+  await page.getByRole('button',{name:'使用这些菜'}).click();await page.locator('dialog').waitFor({state:'hidden'});
+  await page.getByLabel('杂粮饭默认克重').fill('130');await page.getByLabel('杂粮饭默认克重').press('Tab');await page.getByText('已保存',{exact:true}).waitFor();
+  assert.equal(s.menus[`${date}:lunch`][0].grams,130);
+  await page.getByRole('button',{name:'改餐',exact:true}).first().click();
+  await page.locator('input[name="grams0"]').fill('90');await page.getByRole('button',{name:'保存本餐调整'}).click();await page.locator('dialog').waitFor({state:'hidden'});
+  assert.equal(s.boxes[0].items[0].grams,90);
+  await page.getByRole('button',{name:'暂停',exact:true}).first().click();await page.getByRole('button',{name:'恢复',exact:true}).waitFor();assert.equal(D.remaining(s,s.orders[0]),10);
+  await page.getByRole('button',{name:'恢复',exact:true}).click();await page.getByRole('button',{name:'暂停',exact:true}).first().waitFor();
+  await page.evaluate(()=>{window.print=()=>{window.printCalled=true;};});
+  await page.getByRole('button',{name:'打印标签 / 存为 PDF'}).click();
+  await page.emulateMedia({media:'print'});
+  assert.ok(await page.locator('.print-label').evaluateAll(labels=>labels.every(label=>label.scrollHeight<=label.clientHeight)), 'Label content must fit its paper');
+  await page.pdf({path:'tmp/merchant-labels.pdf',preferCSSPageSize:true,printBackground:true});
+  await page.emulateMedia({media:'screen'});
+  await page.getByRole('button',{name:'确认已打印 / 已保存 PDF'}).click();await page.locator('dialog').waitFor({state:'hidden'});
+  assert.ok(s.boxes.every(b=>b.exportedVersion===b.version));assert.equal(D.remaining(s,s.orders[0]),10);
+  await page.getByRole('button',{name:'改餐',exact:true}).first().click();await page.locator('input[name="grams0"]').fill('100');await page.getByRole('button',{name:'保存本餐调整'}).click();await page.locator('dialog').waitFor({state:'hidden'});
+  await page.getByRole('button',{name:'仅打印需重打的标签'}).waitFor();
+  await page.getByRole('button',{name:'本餐完成',exact:true}).click();await page.getByRole('button',{name:'确认完成',exact:true}).click();await page.locator('dialog').waitFor({state:'hidden'});assert.equal(D.remaining(s,s.orders[0]),9);
+  await page.getByRole('button',{name:'＋ 记一单',exact:true}).click();await page.locator('input[name=name]').fill('小新');await page.getByRole('button',{name:'保存并安排出餐'}).click();await page.locator('dialog').waitFor({state:'hidden'});assert.ok(s.customers.some(c=>c.name==='小新'));
+  await page.getByRole('button',{name:'我的菜品'}).click();await page.getByRole('button',{name:'＋ 手动添加'}).click();
+  await page.locator('input[name=name]').fill('手动测试菜');await page.locator('input[name=kcal]').fill('88');await page.locator('input[name=reference]').fill('测试包装标签');await page.getByRole('button',{name:'保存菜品',exact:true}).click();await page.locator('dialog').waitFor({state:'hidden'});assert.equal(s.dishes.at(-1).nutrition.source,'manual');
+  await page.getByRole('button',{name:'搜索薄荷健康',exact:true}).click();await page.getByText('薄荷健康接口尚未接入，目前无法进行真实查询。').waitFor();await page.getByRole('button',{name:'关闭',exact:true}).last().click();
+  await page.getByRole('button',{name:'店铺设置'}).click();await page.locator('input[name=name]').fill('测试小饭桌');await page.getByRole('button',{name:'保存设置',exact:true}).click();await page.getByText('店铺设置已保存').waitFor();assert.equal(s.settings.name,'测试小饭桌');
+  await page.reload();await page.getByRole('heading',{name:'今日出餐',exact:true}).waitFor();await page.getByText('◉ 测试小饭桌').waitFor();
+  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/merchant-mobile.png',fullPage:true});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  assert.deepEqual(errors,[]);console.log('UI passed: live read, 4 views, menu, per-box edit, pause, print/reprint, completion, customer/order, manual nutrition, settings, refresh, mobile; no live data writes.');
+  await browser.close();
+})().catch(error=>{console.error(error);process.exit(1);});
