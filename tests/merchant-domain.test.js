@@ -60,3 +60,48 @@ test('invalid grams and missing manual provenance cannot be persisted',()=>{
   const s=fixture();D.validate(s);s.menus['2026-10-08:lunch'][0].grams=0;assert.throws(()=>D.validate(s),/克重/);
   s.menus['2026-10-08:lunch'][0].grams=120;s.dishes[0].nutrition.reference='';assert.throws(()=>D.validate(s),/依据/);
 });
+
+function preparationFixture() {
+  const s=fixture();s.customers[0].fulfillment='delivery';s.customers[0].address='测试地址 1 号';
+  s.dishes.push({id:'beef',name:'牛肉',ingredients:['牛肉'],nutrition:{source:'manual',basis:'cooked',kcal100:180,reference:'测试'},defaultGrams:150});
+  s.dishes.push({id:'fish',name:'清蒸鱼',category:'海鲜',ingredients:['鱼'],nutrition:{source:'manual',basis:'cooked',kcal100:120,reference:'测试'},defaultGrams:160});
+  D.planOf(s,'2026-10-08','lunch').backups=[{dishId:'beef',grams:150},{dishId:'fish',grams:160}];
+  D.sync(s,'2026-10-08','lunch');return s;
+}
+test('tomorrow crosses month and year correctly',()=>{
+  assert.equal(D.nextDate('2026-12-31'),'2027-01-01');assert.equal(D.nextDate('2026-10-31'),'2026-11-01');
+});
+test('reserves are not included until explicitly substituted',()=>{
+  const s=preparationFixture();assert.equal(s.boxes[0].items.length,1);assert.equal(D.nutrition(s,s.boxes[0].items).kcal,120);
+  D.confirmMenu(s,'2026-10-08','lunch');D.confirmRoster(s,'2026-10-08','lunch');assert.equal(D.workflow(s,'2026-10-08','lunch').rosterReady,true);
+});
+test('menu confirmation requires one or two distinct non-main reserves',()=>{
+  const s=fixture();assert.throws(()=>D.confirmMenu(s,'2026-10-08','lunch'),/备用菜/);
+  D.planOf(s,'2026-10-08','lunch').backups=[{dishId:'rice',grams:100}];assert.throws(()=>D.confirmMenu(s,'2026-10-08','lunch'),/备用菜/);
+});
+test('one click replacement changes only that box and uses reserve grams/calories',()=>{
+  const s=preparationFixture();s.customers[0].restrictions=['大米'];s.orders[0].portions=2;D.sync(s,'2026-10-08','lunch');
+  D.confirmMenu(s,'2026-10-08','lunch');assert.throws(()=>D.confirmRoster(s,'2026-10-08','lunch'),/忌口/);
+  const [a,b]=s.boxes;a.exportedVersion=a.version;D.replaceWithBackup(s,a.id,0,'beef');
+  assert.deepEqual(a.items,[{dishId:'beef',grams:150}]);assert.equal(D.nutrition(s,a.items).kcal,270);assert.equal(b.items[0].dishId,'rice');assert.notEqual(a.exportedVersion,a.version);
+});
+test('unsafe or incompletely described reserve cannot replace a conflict',()=>{
+  const s=preparationFixture();s.customers[0].allergies=['海鲜'];assert.throws(()=>D.replaceWithBackup(s,s.boxes[0].id,0,'fish'),/仍有忌口/);
+  s.dishes.find(d=>d.id==='beef').ingredients=[];assert.throws(()=>D.replaceWithBackup(s,s.boxes[0].id,0,'beef'),/食材/);
+});
+test('main menu changes rebase unaffected items while retaining the chosen substitute',()=>{
+  const s=preparationFixture();D.replaceWithBackup(s,s.boxes[0].id,0,'beef');
+  D.setMenu(s,'2026-10-08','lunch',[{dishId:'rice',grams:200},{dishId:'fish',grams:130}]);
+  assert.deepEqual(s.boxes[0].items,[{dishId:'beef',grams:150},{dishId:'fish',grams:130}]);
+  D.setMenu(s,'2026-10-08','lunch',[{dishId:'fish',grams:180}]);assert.deepEqual(s.boxes[0].items,[{dishId:'fish',grams:180}]);
+});
+test('pausing and resuming refreshes menu, invalidates confirmed roster, does not debit',()=>{
+  const s=preparationFixture();D.confirmMenu(s,'2026-10-08','lunch');D.confirmRoster(s,'2026-10-08','lunch');
+  const b=s.boxes[0];b.status='paused';assert.equal(D.workflow(s,'2026-10-08','lunch').rosterReady,false);
+  D.setMenu(s,'2026-10-08','lunch',[{dishId:'rice',grams:190}]);b.status='pending';assert.equal(b.items[0].grams,190);assert.equal(D.remaining(s,s.orders[0]),2);
+});
+test('recipient confirmation requires address or explicit pickup, and changes invalidate it',()=>{
+  const s=preparationFixture();D.confirmMenu(s,'2026-10-08','lunch');s.customers[0].address='';assert.throws(()=>D.confirmRoster(s,'2026-10-08','lunch'),/配送地址/);
+  s.customers[0].fulfillment='pickup';D.confirmRoster(s,'2026-10-08','lunch');assert.equal(D.workflow(s,'2026-10-08','lunch').rosterReady,true);
+  s.customers[0].nickname='改昵称';assert.equal(D.workflow(s,'2026-10-08','lunch').rosterReady,false);
+});
