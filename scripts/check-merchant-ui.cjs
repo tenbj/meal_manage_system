@@ -56,7 +56,7 @@ const D = require('../public/assets/merchant-domain');
     await page.reload();await page.getByRole('heading',{name:'先贴标签，再照着克重分装'}).waitFor();
     // Missing calories require explicit acknowledgement and never become a zero total.
     const beforeMissing=D.copy(s);s.dishes.find(d=>d.id==='rice').nutrition={source:'legacy',basis:'cooked',kcal100:null};rev++;
-    await page.reload();await page.getByRole('button',{name:'打印全部 3 张',exact:true}).waitFor();await page.evaluate(()=>{window.print=()=>{window.printCalls=(window.printCalls||0)+1;};});
+    await page.reload();await page.getByRole('button',{name:'名单确认，生成标签 →'}).click();await page.getByRole('button',{name:'打印全部 3 张',exact:true}).waitFor();await page.evaluate(()=>{window.print=()=>{window.printCalls=(window.printCalls||0)+1;};});
     await page.getByRole('button',{name:'打印全部 3 张',exact:true}).click();await page.getByRole('heading',{name:'还有热量未补齐'}).waitFor();assert.equal(await page.evaluate(()=>window.printCalls||0),0);
     await page.getByRole('button',{name:'仍打印，标明热量待补充'}).click();await page.getByRole('button',{name:'确认已打印 / 已保存 PDF'}).waitFor();assert.equal(await page.locator('#printArea').getByText('待补充',{exact:true}).count(),3);await page.getByRole('button',{name:'关闭',exact:true}).last().click();
     // Oversized content is caught before opening the print dialog, not silently clipped.

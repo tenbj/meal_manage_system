@@ -30,7 +30,7 @@ function createMerchantRouter(repository, options = {}) {
   router.put('/', async (req,res,next) => {
     try {
       await initialize();
-      try { domain.validate(req.body.state); } catch (error) { return res.status(422).json({ message: error.message }); }
+      try { domain.validate(req.body.state); domain.refreshPending(req.body.state); domain.validate(req.body.state); } catch (error) { return res.status(422).json({ message: error.message }); }
       if (!Number.isInteger(req.body.revision)) return res.status(422).json({ message: '缺少数据版本，请刷新后重试' });
       // Provider records are immutable until an authenticated Boohee adapter is available.
       if (req.body.state.dishes.some(d => d.nutrition.source === 'boohee')) return res.status(422).json({ message: '薄荷接口尚未接入，不能保存为薄荷数据' });
