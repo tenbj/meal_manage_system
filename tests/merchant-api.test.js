@@ -26,11 +26,22 @@ test('merchant API persists revisions, rejects stale writes and unconfigured sou
     const saved=await fetch(url).then(r=>r.json());assert.equal(saved.state.settings.name,'保存测试');assert.equal(saved.revision,2);
     first.state.settings.name='过期内容';assert.equal((await put(first)).status,409);
     assert.equal((await fetch(url).then(r=>r.json())).state.settings.name,'保存测试');
+    // An out-of-range draft may be edited, but cannot be printed or completed through the API.
+    const draft=D.copy(saved);draft.state.customers=[{id:'c',name:'隔离测试',fulfillment:'pickup'}];
+    draft.state.dishes=[{id:'meal',name:'测试菜',category:'素',ingredients:[],nutrition:{source:'manual',basis:'cooked',kcal100:100,reference:'隔离测试'}}];
+    draft.state.orders=[{id:'order',customerId:'c',credits:1,portions:1,startDate:'2026-10-12',endDate:'2026-10-12',meals:['lunch'],weekdays:[1]}];
+    draft.state.boxes=[{id:'box',customerId:'c',orderId:'order',date:'2026-10-12',meal:'lunch',status:'pending',portionMode:'manual',items:[{dishId:'meal',grams:677}],version:1,exportedVersion:0}];
+    assert.equal((await put(draft)).status,200);const unsafe=await fetch(url).then(r=>r.json());
+    const print=D.copy(unsafe);print.state.boxes[0].exportedVersion=print.state.boxes[0].version;assert.equal((await put(print)).status,422);
+    const complete=D.copy(unsafe);complete.state.boxes[0].status='completed';assert.equal((await put(complete)).status,422);
+    assert.equal((await fetch(url).then(r=>r.json())).state.boxes[0].status,'pending');
+    // Keep the other validation cases on the latest revision and immutable records.
+    Object.assign(saved,await fetch(url).then(r=>r.json()));
     const fabricated=D.copy(saved);fabricated.state.dishes.push({id:'fake',name:'伪造条目',nutrition:{source:'boohee',basis:'cooked',kcal100:100}});
     assert.equal((await put(fabricated)).status,422);
     const invalid=D.copy(saved);invalid.state.settings.labelWidth=-1;assert.equal((await put(invalid)).status,422);
     const incomplete=D.copy(saved);incomplete.state.dishes.push({id:'empty',name:'无热量新菜',nutrition:{source:'legacy',kcal100:null,basis:'cooked'}});incomplete.state.menus['2026-10-12:lunch']=[{dishId:'empty',grams:150}];
-    assert.equal((await put(incomplete)).status,422);assert.equal((await fetch(url).then(r=>r.json())).state.dishes.length,0);
+    assert.equal((await put(incomplete)).status,422);assert.equal((await fetch(url).then(r=>r.json())).state.dishes.length,1);
     assert.equal((await fetch(`${url}/nutrition/status`).then(r=>r.json())).configured,false);
     assert.equal((await fetch(`${url}/nutrition/search?q=米饭`)).status,503);
   }finally{await new Promise(resolve=>server.close(resolve));}

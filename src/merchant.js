@@ -74,6 +74,15 @@ function createMerchantRouter(repository, options = {}) {
       if (!Number.isInteger(req.body.revision)) return res.status(422).json({ message: '缺少数据版本，请刷新后重试' });
       const previous=await readRecord();
       try{domain.validateNutritionChanges(req.body.state,previous.state);}catch(error){return res.status(422).json({message:error.message});}
+      for(const box of req.body.state.boxes) {
+        const old=previous.state.boxes.find(b=>b.id===box.id);
+        const completing=box.status==='completed'&&old?.status!=='completed';
+        const printing=box.exportedVersion&&box.exportedVersion!==old?.exportedVersion&&box.status!=='completed';
+        if(completing||printing) {
+          const issue=domain.portionIssue(req.body.state,{...box,status:'pending'});
+          if(issue)return res.status(422).json({message:issue});
+        }
+      }
       if(req.body.state.dishes.some(d=>d.nutrition.source==='boohee'&&!isDeepStrictEqual(d.nutrition,previous.state.dishes.find(x=>x.id===d.id)?.nutrition)))return res.status(422).json({message:'薄荷热量必须通过真实查询添加，不可伪造或改写'});
       if(!isDeepStrictEqual((req.body.state.creditAdjustments||[]).slice(0,(previous.state.creditAdjustments||[]).length),previous.state.creditAdjustments||[]))return res.status(422).json({message:'原有餐次调整流水不能删除或改写'});
       for(const old of previous.state.orders){const current=req.body.state.orders.find(o=>o.id===old.id);if(!current||current.credits!==old.credits||current.customerId!==old.customerId)return res.status(422).json({message:'原购买记录不能删除或改写，请通过餐次调整流水补扣'});}

@@ -32,6 +32,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),D=require('../p
     await page.getByRole('button',{name:'备餐工作台'}).click();await button('＋ 添加用餐人').click();await page.locator('input[name=customer]').first().check();await page.locator('input[name=customer]').last().check();await button('添加到本餐').click();await hidden();
     assert.equal(s.boxes.length,2);assert.equal(s.boxes[0].orderId,s.orders[0].id);assert.equal(D.orderKind(s.orders.at(-1)),'single');
     await page.getByText('目标 500 kcal',{exact:true}).first().waitFor();await button('换备用菜').click();await page.locator('[data-action=use-backup][data-dish=beef]').click();await hidden();assert.equal(s.boxes[0].items[1].dishId,'beef');
+    // Default portions outside the range block labels until repaired.
+    await button('改克重 / 菜品').first().click();for(const el of await page.locator('input[name^=grams]').all())await el.fill('300');await button('保存本餐调整').click();await hidden();assert.equal(await button('名单确认，生成标签 →').isDisabled(),true);await page.getByText(/须调整至 400–600 kcal/).first().waitFor();
+    await button('改克重 / 菜品').first().click();await button('恢复自动配餐').click();await hidden();assert.equal(await button('名单确认，生成标签 →').isEnabled(),true);
     // Visible profile fields, live calculation and manual/automatic switching.
     await button('身体资料').first().click();await page.locator('select[name=gender]').selectOption('女');await page.locator('input[name=age]').fill('30');await page.locator('input[name=height]').fill('160');await page.locator('input[name=currentWeight]').fill('60');await page.locator('#targetPreview').getByText(/464/).waitFor();await button('保存客户').click();await hidden();assert.equal(s.boxes[0].allocation.target.kcal,464);
     await button('改克重 / 菜品').first().click();await page.locator('input[name=grams0]').fill('90');await button('保存本餐调整').click();await hidden();assert.equal(s.boxes[0].portionMode,'manual');

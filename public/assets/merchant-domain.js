@@ -60,16 +60,26 @@
     if (!items.length) return fail('请先选择本餐菜单');
     if (items.some(i => !validNutrition(dishOf(state,i.dishId)) || Number(dishOf(state,i.dishId).nutrition.kcal100) <= 0)) return fail('菜品成品热量需完整且大于 0，补齐后自动计算克重');
     const isStaple = i => dishOf(state,i.dishId).category === '主食';
-    if (!items.some(isStaple) || items.every(isStaple)) return fail('菜单需同时包含主食和菜，才能按 1/3 热量分配');
+    const hasBothGroups = items.some(isStaple) && !items.every(isStaple);
     // Preserve the merchant's relative portions within each group, not equal calories per dish.
     const sums = [0,0];
     items.forEach(i => { sums[isStaple(i)?0:1] += Number(i.grams) * Number(dishOf(state,i.dishId).nutrition.kcal100) / 100; });
     const result = items.map(i => {
       const group = isStaple(i) ? 0 : 1;
-      return { dishId:i.dishId, grams: Math.max(1,Math.round(Number(i.grams) * (target.kcal * (group===0?1/3:2/3)) / sums[group])) };
+      const budget = hasBothGroups ? target.kcal * (group===0?1/3:2/3) : target.kcal;
+      return { dishId:i.dishId, grams: Math.max(1,Math.round(Number(i.grams) * budget / sums[group])) };
     });
     if (result.some(i=>!Number.isFinite(i.grams)||i.grams>10000)) return fail('计算份量超出可用范围，请核对每 100 g 热量与菜单');
-    return { items: result, target, status:'auto', message:'主食占热量 1/3，其余菜占 2/3；同组按基准份量同比调整，取整到 1 g' };
+    const kcal=nutrition(state,result).kcal;
+    if(target.source==='default'&&(kcal<target.minKcal||kcal>target.maxKcal))return fail('取整后的热量超出 400–600 kcal，请核对菜品热量或调整菜单');
+    return { items: result, target, status:'auto', message:hasBothGroups?'主食占热量 1/3，其余菜占 2/3；同组按基准份量同比调整，取整到 1 g':`本餐${items.some(isStaple)?'只有主食':'未选主食'}，按现有菜品比例分配全部目标热量，取整到 1 g` };
+  }
+  function portionIssue(state,box) {
+    if(box.status==='completed')return '';
+    const target=mealTarget(state.customers.find(c=>c.id===box.customerId),state.settings),n=nutrition(state,box.items);
+    if(target.source==='default'&&n.complete&&(n.kcal<target.minKcal||n.kcal>target.maxKcal))return `本餐 ${n.kcal} kcal，须调整至 400–600 kcal；可恢复自动配餐`;
+    if(box.allocation?.status==='unavailable')return `自动配餐未完成：${box.allocation.message}`;
+    return '';
   }
   function recalculateBox(state, box) {
     if (['completed','cancelled'].includes(box.status)) return;
@@ -262,9 +272,10 @@
     const menuReady=menuValid&&!menuRepeats(state,date,meal).length&&sameSignature(plan.menuConfirmed,menuSignature(state,date,meal));
     const conflicts=live.filter(b=>b.status!=='completed'&&checks(state,b).conflicts.length),reviews=live.filter(b=>b.status!=='completed'&&checks(state,b).unknown);
     const missingNutrition=live.filter(b=>!nutrition(state,b.items).complete);
+    const portionIssues=live.filter(b=>portionIssue(state,b));
     const missingAddress=live.filter(b=>{const c=b.customerSnapshot||state.customers.find(c=>c.id===b.customerId);return c?.fulfillment!=='pickup'&&!String(c?.address||'').trim();});
-    const rosterReady=menuReady&&live.length>0&&!conflicts.length&&!reviews.length&&!missingAddress.length&&!missingNutrition.length&&sameSignature(plan.rosterConfirmed,rosterSignature(state,date,meal));
-    return {menuValid,menuReady,rosterReady,live,conflicts,reviews,missingNutrition,missingAddress,stage:rosterReady?3:menuReady?2:1};
+    const rosterReady=menuReady&&live.length>0&&!conflicts.length&&!reviews.length&&!missingAddress.length&&!missingNutrition.length&&!portionIssues.length&&sameSignature(plan.rosterConfirmed,rosterSignature(state,date,meal));
+    return {menuValid,menuReady,rosterReady,live,conflicts,reviews,missingNutrition,missingAddress,portionIssues,stage:rosterReady?3:menuReady?2:1};
   }
   function confirmMenu(state,date,meal) {
     requireNutrition(state,[...(state.menus[keyOf(date,meal)]||[]),...planOf(state,date,meal).backups]);
@@ -281,6 +292,7 @@
     if(w.reviews.length)throw new Error('请先确认待核对的本店用料，无需补写整份配方');
     if(w.missingAddress.length)throw new Error('请补全配送地址，或设置为自提');
     if(w.missingNutrition.length)throw new Error('请补全每道菜的成品热量，再生成标签');
+    if(w.portionIssues.length)throw new Error(portionIssue(state,w.portionIssues[0]));
     planOf(state,date,meal).rosterConfirmed=rosterSignature(state,date,meal);
   }
   function captureOverrides(state,box) {
@@ -336,11 +348,13 @@
   }
   function touch(box) { box.version = (box.version || 1) + 1; }
   function finish(state, ids) {
+    refreshPending(state);
     const boxes = [...new Set(ids)].map(id => state.boxes.find(b => b.id === id)).filter(b => b && b.status === 'pending');
     const counts = new Map();
     for (const box of boxes) {
       if (!box.items.length) throw new Error('请先设置菜单');
       requireNutrition(state,box.items);
+      if(portionIssue(state,box))throw new Error(portionIssue(state,box));
       if (checks(state, box).blocked) throw new Error('请先处理忌口或核对本店用料');
       const order = state.orders.find(o => o.id === box.orderId);
       if (!order) throw new Error('该餐盒缺少订餐记录');
@@ -389,5 +403,5 @@
     for (const items of lists) for (const i of items) if (!dishOf(state, i.dishId) || !Number.isFinite(Number(i.grams)) || Number(i.grams) <= 0 || Number(i.grams) > 10000) throw new Error('请填写有效的菜品克重（1–10000 g）');
     return state;
   }
-  return { dietaryTerms, ingredientSource, activeDietaryReviews, setDietaryReview, requireNutrition, validateNutritionChanges, reserved, usableOrders, addDiner, cancelBox, resumeBox, adjustBalance, orderKind, orderLabel, menuRepeats, purgeLegacyDishes, copy, today, nextDate, initial, hydrate, dishOf, remaining, validNutrition, nutrition, checks, itemCheck, sync, touch, finish, validate, planOf, workflow, confirmMenu, confirmRoster, setMenu, setBoxItems, replaceWithBackup, mealTarget, allocate, recalculateBox, refreshPending, restoreAutomatic };
+  return { portionIssue, dietaryTerms, ingredientSource, activeDietaryReviews, setDietaryReview, requireNutrition, validateNutritionChanges, reserved, usableOrders, addDiner, cancelBox, resumeBox, adjustBalance, orderKind, orderLabel, menuRepeats, purgeLegacyDishes, copy, today, nextDate, initial, hydrate, dishOf, remaining, validNutrition, nutrition, checks, itemCheck, sync, touch, finish, validate, planOf, workflow, confirmMenu, confirmRoster, setMenu, setBoxItems, replaceWithBackup, mealTarget, allocate, recalculateBox, refreshPending, restoreAutomatic };
 });
