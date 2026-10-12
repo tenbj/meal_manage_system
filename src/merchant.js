@@ -1,3 +1,4 @@
+const {isDeepStrictEqual}=require('node:util');
 const express = require('express');
 const { getPool } = require('./db');
 const domain = require('../public/assets/merchant-domain');
@@ -73,11 +74,11 @@ function createMerchantRouter(repository, options = {}) {
       if (!Number.isInteger(req.body.revision)) return res.status(422).json({ message: '缺少数据版本，请刷新后重试' });
       const previous=await readRecord();
       try{domain.validateNutritionChanges(req.body.state,previous.state);}catch(error){return res.status(422).json({message:error.message});}
-      if(req.body.state.dishes.some(d=>d.nutrition.source==='boohee'&&JSON.stringify(d.nutrition)!==JSON.stringify(previous.state.dishes.find(x=>x.id===d.id)?.nutrition)))return res.status(422).json({message:'薄荷热量必须通过真实查询添加，不可伪造或改写'});
-      if(JSON.stringify((req.body.state.creditAdjustments||[]).slice(0,(previous.state.creditAdjustments||[]).length))!==JSON.stringify(previous.state.creditAdjustments||[]))return res.status(422).json({message:'原有餐次调整流水不能删除或改写'});
+      if(req.body.state.dishes.some(d=>d.nutrition.source==='boohee'&&!isDeepStrictEqual(d.nutrition,previous.state.dishes.find(x=>x.id===d.id)?.nutrition)))return res.status(422).json({message:'薄荷热量必须通过真实查询添加，不可伪造或改写'});
+      if(!isDeepStrictEqual((req.body.state.creditAdjustments||[]).slice(0,(previous.state.creditAdjustments||[]).length),previous.state.creditAdjustments||[]))return res.status(422).json({message:'原有餐次调整流水不能删除或改写'});
       for(const old of previous.state.orders){const current=req.body.state.orders.find(o=>o.id===old.id);if(!current||current.credits!==old.credits||current.customerId!==old.customerId)return res.status(422).json({message:'原购买记录不能删除或改写，请通过餐次调整流水补扣'});}
       if(previous.state.boxes.some(old=>!req.body.state.boxes.some(b=>b.id===old.id)))return res.status(422).json({message:'原用餐记录不能删除，请使用取消操作'});
-      for(const old of previous.state.boxes)if(old.events?.length&&JSON.stringify(req.body.state.boxes.find(b=>b.id===old.id)?.events?.slice(0,old.events.length))!==JSON.stringify(old.events))return res.status(422).json({message:'原有取消与恢复记录不能删除或改写'});
+      for(const old of previous.state.boxes)if(old.events?.length&&!isDeepStrictEqual(req.body.state.boxes.find(b=>b.id===old.id)?.events?.slice(0,old.events.length),old.events))return res.status(422).json({message:'原有取消与恢复记录不能删除或改写'});
       const [result] = await poolFor().query('UPDATE merchant_workspace SET payload=?,revision=revision+1 WHERE id=1 AND revision=?', [JSON.stringify(req.body.state),req.body.revision]);
       if (!result.affectedRows) return res.status(409).json({ message: '其他窗口已更新数据，请刷新后再操作。当前输入尚未保存。' });
       res.json({ ok: true, revision: req.body.revision + 1 });

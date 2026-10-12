@@ -75,8 +75,8 @@ test('reserves are not included until explicitly substituted',()=>{
   const s=preparationFixture();assert.equal(s.boxes[0].items.length,1);assert.equal(D.nutrition(s,s.boxes[0].items).kcal,120);
   D.confirmMenu(s,'2026-10-08','lunch');D.confirmRoster(s,'2026-10-08','lunch');assert.equal(D.workflow(s,'2026-10-08','lunch').rosterReady,true);
 });
-test('menu confirmation requires one or two distinct non-main reserves',()=>{
-  const s=fixture();assert.throws(()=>D.confirmMenu(s,'2026-10-08','lunch'),/备用菜/);
+test('reserves are optional but cannot repeat a main dish',()=>{
+  const s=fixture();assert.doesNotThrow(()=>D.confirmMenu(s,'2026-10-08','lunch'));
   D.planOf(s,'2026-10-08','lunch').backups=[{dishId:'rice',grams:100}];assert.throws(()=>D.confirmMenu(s,'2026-10-08','lunch'),/备用菜/);
 });
 test('one click replacement changes only that box and uses reserve grams/calories',()=>{
@@ -104,4 +104,15 @@ test('recipient confirmation requires address or explicit pickup, and changes in
   const s=preparationFixture();D.confirmMenu(s,'2026-10-08','lunch');s.customers[0].address='';assert.throws(()=>D.confirmRoster(s,'2026-10-08','lunch'),/配送地址/);
   s.customers[0].fulfillment='pickup';D.confirmRoster(s,'2026-10-08','lunch');assert.equal(D.workflow(s,'2026-10-08','lunch').rosterReady,true);
   s.customers[0].nickname='改昵称';assert.equal(D.workflow(s,'2026-10-08','lunch').rosterReady,false);
+});
+
+test('database object key reordering preserves menu, roster and printed portion versions',()=>{
+  const reorder=value=>Array.isArray(value)?value.map(reorder):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).reverse().map(k=>[k,reorder(value[k])])):value;
+  const s=preparationFixture(),date='2026-10-08';D.confirmMenu(s,date,'lunch');D.confirmRoster(s,date,'lunch');s.boxes[0].exportedVersion=s.boxes[0].version;
+  // Existing signatures may use the previous noncanonical field ordering.
+  for(const field of ['menuConfirmed','rosterConfirmed'])s.plans[date+':lunch'][field]=JSON.stringify(reorder(JSON.parse(s.plans[date+':lunch'][field])));
+  s.boxes[0].portionSignature=JSON.stringify(reorder(JSON.parse(s.boxes[0].portionSignature)));
+  const restored=D.hydrate(reorder(s)),version=restored.boxes[0].version;D.refreshPending(restored);D.sync(restored,date,'lunch');
+  assert.equal(restored.boxes[0].version,version);assert.equal(restored.boxes[0].exportedVersion,version);assert.equal(D.workflow(restored,date,'lunch').rosterReady,true);
+  restored.customers[0].address='新的配送地址';D.refreshPending(restored);assert.equal(D.workflow(restored,date,'lunch').rosterReady,false);assert.ok(restored.boxes[0].version>version);
 });

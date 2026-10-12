@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const express=require('express');
 const {createMerchantRouter}=require('../src/merchant');
 const D=require('../public/assets/merchant-domain');
+const {createBoohee}=require('../src/boohee');
 
 test('merchant API persists revisions, rejects stale writes and unconfigured source claims',async()=>{
   let record=null;
@@ -14,7 +15,7 @@ test('merchant API persists revisions, rejects stale writes and unconfigured sou
     if(sql.startsWith('UPDATE')){if(record.revision!==args[1])return [{affectedRows:0}];record={revision:record.revision+1,payload:args[0]};return [{affectedRows:1}];}
     throw new Error(`Unexpected SQL: ${sql}`);
   }};
-  const app=express();app.use(express.json());app.use('/api/merchant',createMerchantRouter({readState:async()=>({})},{getPool:()=>pool}));
+  const app=express();app.use(express.json());app.use('/api/merchant',createMerchantRouter({readState:async()=>({})},{getPool:()=>pool,boohee:createBoohee({readKey:async()=>''})}));
   const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
   const url=`http://127.0.0.1:${server.address().port}/api/merchant`;
   try{

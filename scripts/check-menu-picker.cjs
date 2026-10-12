@@ -6,7 +6,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),D=require('../p
     const page=await browser.newPage({viewport:{width:1280,height:950}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
     let state=D.initial(),revision=1,searches=0,configured=false,searchFails=false;
     const date=D.nextDate(D.today());
-    state.dishes=[['rice','杂粮饭','主食'],['beef','香煎牛肉','荤']].map(([id,name,category])=>({id,name,category,ingredients:[name],defaultGrams:150,nutrition:{source:'manual',kcal100:120,basis:'cooked',reference:'隔离测试'}}));
+    state.dishes=[['rice','杂粮饭','主食'],['beef','香煎牛肉','荤'],['fish','清蒸鲈鱼','海鲜'],['duck','香菇鸭肉','荤']].map(([id,name,category])=>({id,name,category,ingredients:[name],defaultGrams:150,nutrition:{source:'manual',kcal100:120,basis:'cooked',reference:'隔离测试'}}));
     state.dishes.push({id:'legacy',name:'旧菜热量缺失',category:'素',nutrition:{source:'legacy',kcal100:null,basis:'cooked'}});
     state.menus[date+':lunch']=[{dishId:'rice',grams:180}];
     await page.route('**/api/merchant',async route=>{
@@ -25,9 +25,10 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),D=require('../p
     const button=name=>page.getByRole('button',{name,exact:true});const close=()=>button('关闭').last().click();const hidden=()=>page.locator('dialog').waitFor({state:'hidden'});
     await page.goto(process.env.MERCHANT_URL||'http://localhost:3201');await button('选择主菜').click();
     assert.equal(await page.locator('input[value=legacy]').isDisabled(),true);await page.locator('input[value=beef]').check();
+    await page.locator('#pickCategoryTabs [data-category="主食"]').click();assert.equal(await page.locator('.pick-row:visible').count(),1);await page.locator('#pickCategoryTabs [data-category="海鲜"]').click();assert.equal(await page.locator('.pick-row:visible').count(),1);await page.locator('.pick-row:visible .category-tag').getByText('海鲜',{exact:true}).waitFor();await page.locator('#pickCategoryTabs [data-category=""]').click();assert.equal(await page.locator('input[value=beef]').isChecked(),true);
     await page.getByLabel('搜索常用菜').fill('香菇鸡丁');await page.getByText('我的菜品中没有匹配结果。',{exact:true}).waitFor();assert.equal(searches,0);
     await button('手动新建').click();assert.equal(await page.locator('[name=name]').inputValue(),'香菇鸡丁');await close();await page.getByLabel('搜索常用菜').waitFor();assert.equal(await page.locator('input[value=beef]').isChecked(),true);
-    await button('手动新建').click();await button('保存并选入本餐').click();assert.equal(await page.locator('[name=kcal]').evaluate(el=>el.validity.valueMissing),true);assert.equal(state.dishes.length,3);
+    await button('手动新建').click();await button('保存并选入本餐').click();assert.equal(await page.locator('[name=kcal]').evaluate(el=>el.validity.valueMissing),true);assert.equal(state.dishes.length,5);
     await page.locator('[name=kcal]').fill('155');await page.locator('[name=reference]').fill('商家配方核算');await page.locator('[name=ingredients]').fill('鸡肉，香菇');await button('保存并选入本餐').click();await page.getByLabel('搜索常用菜').waitFor();
     const manual=state.dishes.find(d=>d.name==='香菇鸡丁');assert.ok(manual);assert.equal(await page.locator(`input[value="${manual.id}"]`).isChecked(),true);assert.equal(await page.locator('input[value=rice]').isChecked(),true);assert.equal(await page.locator('input[value=beef]').isChecked(),true);assert.equal(state.menus[date+':lunch'].length,1);
     await page.getByLabel('搜索常用菜').fill('菠菜');searchFails=true;await button('去薄荷搜索').click();await page.getByText(/连接薄荷超时/).waitFor();await button('手动新建').waitFor();
@@ -37,7 +38,12 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),D=require('../p
     await page.screenshot({path:'tmp/picker-inline-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/picker-inline-mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.querySelector('dialog').scrollWidth<=document.querySelector('dialog').clientWidth));await page.setViewportSize({width:1280,height:950});
     await button('使用这些菜').click();await hidden();assert.deepEqual(state.menus[date+':lunch'].map(i=>i.dishId),['rice',manual.id,'boohee:spinach']);assert.equal(state.menus[date+':lunch'][0].grams,180);
     await button('选择主菜').click();await page.getByLabel('搜索常用菜').fill('杂粮');await button('去薄荷搜索').click();await button('选入本餐').click();await page.getByLabel('搜索常用菜').waitFor();assert.equal(await page.locator('input[value=rice]').isChecked(),true);await close();await hidden();
+    await button('＋ 添加备用菜').click();await page.locator('#pickCategoryTabs [data-category="海鲜"]').click();await page.locator('input[value=fish]').check();await button('使用这些菜').click();await hidden();assert.equal(D.planOf(state,date,'lunch').backups.length,1);
+    await button('＋ 添加备用菜').click();await page.locator('#pickCategoryTabs [data-category="荤"]').click();await page.locator('input[value=beef]').check();await page.locator('input[value=duck]').check();await button('使用这些菜').click();await hidden();assert.equal(D.planOf(state,date,'lunch').backups.length,3);assert.equal(D.workflow(state,date,'lunch').menuValid,true);
+    await page.getByRole('button',{name:'我的菜品'}).click();assert.equal(await page.locator('.dish-section').count(),4);await page.screenshot({path:'tmp/catalog-categories-desktop.png',fullPage:true});await page.locator('.catalog-tabs [data-category="海鲜"]').click();assert.equal(await page.locator('.dish-card').count(),1);await page.locator('.dish-card h3').getByText('清蒸鲈鱼',{exact:true}).waitFor();
+    await page.locator('.catalog-tabs [data-category="素"]').click();await button('＋ 手动添加').click();assert.equal(await page.locator('[name=category]').inputValue(),'素');await close();await hidden();
+    await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/catalog-categories-mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.setViewportSize({width:1280,height:950});
     await page.getByRole('button',{name:'店铺设置'}).click();await button('连接 / 检查薄荷健康').click();await button('检测已保存的连接').click();await page.locator('#connectionResult').getByText(/错误码 1042/).waitFor();assert.equal(await page.locator('[name=apiKey]').inputValue(),'');
-    assert.deepEqual(errors,[]);console.log('Menu picker UI passed: draft preservation, mandatory calories, inline manual/provider add, local reuse, connect/retry, diagnostics, desktop/mobile. All writes and provider calls isolated.');
+    assert.deepEqual(errors,[]);console.log('Menu picker UI passed: category filters and badges, grouped catalog, incremental flexible backups, draft preservation, mandatory calories, inline manual/provider add, local reuse, connect/retry, diagnostics, desktop/mobile. All writes and provider calls isolated.');
   }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

@@ -23,10 +23,10 @@ test('manual adjustment appends ledger without rewriting purchase and cannot und
   D.adjustBalance(s,'p1',5,'赠送三次',id('a'));assert.equal(s.orders[0].credits,2);assert.equal(D.remaining(s,s.orders[0]),5);assert.equal(s.creditAdjustments[0].delta,3);
   D.adjustBalance(s,'p1',4,'补扣一次',id('a'));assert.equal(s.creditAdjustments.length,2);assert.equal(D.remaining(s,s.orders[0]),4);assert.throws(()=>D.adjustBalance(s,'p1',2,'',id('a')),/原因/);
 });
-test('menus require a meat and vegetable backup, and no repeat with neighboring meals',()=>{
+test('menus allow flexible backups and still prevent repeats with neighboring meals',()=>{
   const s=fixture();D.confirmMenu(s,'2026-10-12','lunch');s.menus['2026-10-12:dinner']=[{dishId:'rice',grams:100}];assert.equal(D.workflow(s,'2026-10-12','lunch').menuReady,false);assert.throws(()=>D.confirmMenu(s,'2026-10-12','lunch'),/重复菜/);
   delete s.menus['2026-10-12:dinner'];s.menus['2026-10-13:dinner']=[{dishId:'veg',grams:100}];assert.equal(D.menuRepeats(s,'2026-10-12','lunch').length,1);
-  delete s.menus['2026-10-13:dinner'];D.planOf(s,'2026-10-12','lunch').backups.pop();assert.throws(()=>D.confirmMenu(s,'2026-10-12','lunch'),/一荤一素/);
+  delete s.menus['2026-10-13:dinner'];D.planOf(s,'2026-10-12','lunch').backups.pop();assert.doesNotThrow(()=>D.confirmMenu(s,'2026-10-12','lunch'));
 });
 test('catalog cleanup removes old selectable data but keeps completed nutrition and credit history',()=>{
   const s=fixture(),b=D.addDiner(s,'c','2026-10-12','lunch',id);D.finish(s,[b.id]);const kcal=D.nutrition(s,b.items).kcal;
@@ -50,4 +50,14 @@ test('incomplete calories cannot enter menus, reserves, boxes or serving, while 
   next.menus[date+':dinner']=[{dishId:'meat',grams:120}];assert.throws(()=>D.validateNutritionChanges(next,legacy),/成品热量/);
   delete next.menus[date+':dinner'];D.planOf(next,date,'dinner').backups=[{dishId:'meat',grams:100}];assert.throws(()=>D.validateNutritionChanges(next,legacy),/成品热量/);
   for(const kcal100 of [null,undefined,'','  ',false,{},NaN,-1])assert.equal(D.validNutrition({nutrition:{source:'manual',basis:'cooked',kcal100}}),false);
+});
+
+test('backups can be added one at a time, any category and more than two, without changing main portions',()=>{
+  const s=fixture(),date='2026-10-12',plan=D.planOf(s,date,'lunch');plan.backups=[];
+  const b=D.addDiner(s,'c',date,'lunch',id),items=D.copy(b.items);
+  for(const category of ['主食','荤','荤','海鲜']) {
+    const dish={...D.copy(s.dishes[0]),id:id('backup'),category};s.dishes.push(dish);plan.backups.push({dishId:dish.id,grams:100});
+    D.validate(s);D.confirmMenu(s,date,'lunch');assert.deepEqual(b.items,items);assert.equal(D.workflow(s,date,'lunch').menuReady,true);
+  }
+  plan.backups.push(D.copy(plan.backups[0]));assert.throws(()=>D.validate(s),/备用菜不能重复/);
 });
