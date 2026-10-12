@@ -6,3 +6,4 @@ coverage/
 tmp/
 logs/
 *.log
+.runtime/

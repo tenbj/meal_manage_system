@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const D = require('../public/assets/merchant-domain');
 function fixture() {
-  const s=D.initial();
+  const s=D.initial();s.rosterMode='legacy-auto';
   s.customers=[{id:'c',name:'测试客户',restrictions:[],allergies:[]}];
   s.dishes=[{id:'rice',name:'熟米饭',ingredients:['大米'],nutrition:{source:'manual',basis:'cooked',kcal100:100,reference:'测试'},defaultGrams:120}];
   s.orders=[{id:'o',customerId:'c',startDate:'2026-10-08',endDate:'2026-10-10',status:'服务中',credits:2,portions:1,meals:['lunch'],weekdays:[0,1,2,3,4,5,6]}];
@@ -63,9 +63,9 @@ test('invalid grams and missing manual provenance cannot be persisted',()=>{
 
 function preparationFixture() {
   const s=fixture();s.customers[0].fulfillment='delivery';s.customers[0].address='测试地址 1 号';
-  s.dishes.push({id:'beef',name:'牛肉',ingredients:['牛肉'],nutrition:{source:'manual',basis:'cooked',kcal100:180,reference:'测试'},defaultGrams:150});
+  s.dishes.push({id:'beef',name:'牛肉',category:'荤',ingredients:['牛肉'],nutrition:{source:'manual',basis:'cooked',kcal100:180,reference:'测试'},defaultGrams:150});
   s.dishes.push({id:'fish',name:'清蒸鱼',category:'海鲜',ingredients:['鱼'],nutrition:{source:'manual',basis:'cooked',kcal100:120,reference:'测试'},defaultGrams:160});
-  D.planOf(s,'2026-10-08','lunch').backups=[{dishId:'beef',grams:150},{dishId:'fish',grams:160}];
+  s.dishes.push({...D.copy(s.dishes[1]),id:'veg',name:'青菜',category:'素',ingredients:['青菜']});D.planOf(s,'2026-10-08','lunch').backups=[{dishId:'beef',grams:150},{dishId:'veg',grams:160}];
   D.sync(s,'2026-10-08','lunch');return s;
 }
 test('tomorrow crosses month and year correctly',()=>{
@@ -86,7 +86,7 @@ test('one click replacement changes only that box and uses reserve grams/calorie
   assert.deepEqual(a.items,[{dishId:'beef',grams:150}]);assert.equal(D.nutrition(s,a.items).kcal,270);assert.equal(b.items[0].dishId,'rice');assert.notEqual(a.exportedVersion,a.version);
 });
 test('unsafe or incompletely described reserve cannot replace a conflict',()=>{
-  const s=preparationFixture();s.customers[0].allergies=['海鲜'];assert.throws(()=>D.replaceWithBackup(s,s.boxes[0].id,0,'fish'),/仍有忌口/);
+  const s=preparationFixture();s.customers[0].allergies=['海鲜'];D.planOf(s,'2026-10-08','lunch').backups[1]={dishId:'fish',grams:160};assert.throws(()=>D.replaceWithBackup(s,s.boxes[0].id,0,'fish'),/仍有忌口/);
   s.dishes.find(d=>d.id==='beef').ingredients=[];assert.throws(()=>D.replaceWithBackup(s,s.boxes[0].id,0,'beef'),/食材/);
 });
 test('main menu changes rebase unaffected items while retaining the chosen substitute',()=>{

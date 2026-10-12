@@ -2,13 +2,13 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const D=require('../public/assets/merchant-domain');
 function fixture() {
-  const s=D.initial(),date='2026-10-09';
+  const s=D.initial(),date='2026-10-09';s.rosterMode='legacy-auto';
   s.customers=[{id:'c',name:'配餐测试',gender:'女',age:30,height:160,currentWeight:60,fulfillment:'pickup'}];
   s.dishes=[['rice','主食',100,120],['beef','荤',180,150],['veg','素',60,100],['chicken','荤',120,150]].map(([id,category,kcal100,defaultGrams])=>({id,name:id,category,defaultGrams,ingredients:[id],nutrition:{source:'manual',basis:'cooked',kcal100,reference:'隔离测试'}}));
   s.orders=[{id:'o',customerId:'c',status:'服务中',startDate:date,endDate:date,meals:['lunch','dinner'],weekdays:[0,1,2,3,4,5,6],portions:1,credits:4}];
   for(const meal of ['lunch','dinner']) {
     s.menus[`${date}:${meal}`]=s.dishes.slice(0,3).map(d=>({dishId:d.id,grams:d.defaultGrams}));
-    D.planOf(s,date,meal).backups=[{dishId:'chicken',grams:150}];D.sync(s,date,meal);
+    s.dishes.push({...D.copy(s.dishes[2]),id:'extra-'+meal});D.planOf(s,date,meal).backups=[{dishId:'chicken',grams:150},{dishId:'extra-'+meal,grams:100}];D.sync(s,date,meal);
   }
   return s;
 }
@@ -18,10 +18,10 @@ test('adult profile uses Mifflin estimate times 36%, independently for lunch and
   assert.equal(s.boxes[0].allocation.target.kcal,s.boxes[1].allocation.target.kcal);
 });
 test('fallback units are explicit; missing sex and minors never silently use female defaults',()=>{
-  assert.equal(D.mealTarget({gender:'女'}).kcal,1400);assert.equal(D.mealTarget({gender:'男'}).kcal,1600);
-  assert.equal(D.mealTarget({gender:'女'},{fallbackCalorieBasis:'daily-base'}).kcal,504);
-  assert.equal(D.mealTarget({gender:'男',height:175},{fallbackCalorieBasis:'daily-base'}).kcal,576);
-  assert.equal(D.mealTarget({}).kcal,null);assert.equal(D.mealTarget({gender:'女',age:12,height:150,currentWeight:40}).kcal,null);
+  assert.equal(D.mealTarget({gender:'女'}).kcal,500);assert.equal(D.mealTarget({gender:'男'}).kcal,500);
+  assert.equal(D.mealTarget({gender:'女'},{fallbackCalorieBasis:'daily-base'}).kcal,500);
+  assert.equal(D.mealTarget({gender:'男',height:175},{fallbackCalorieBasis:'daily-base'}).kcal,500);
+  assert.equal(D.mealTarget({}).kcal,500);assert.equal(D.mealTarget({gender:'女',age:12,height:150,currentWeight:40}).kcal,null);
 });
 test('one third is staple calories; other dishes preserve baseline mass ratio and round to grams',()=>{
   const s=fixture(),b=s.boxes[0];assert.equal(b.allocation.status,'auto');
@@ -47,7 +47,7 @@ test('automatic backup replacement recalculates weights while preserving target 
   D.refreshPending(s);assert.equal(b.items[1].dishId,'chicken');
 });
 test('profile or dish edits invalidate printed portions and confirmed rosters; refresh is idempotent',()=>{
-  const s=fixture(),b=s.boxes[0];D.confirmMenu(s,b.date,b.meal);D.confirmRoster(s,b.date,b.meal);b.exportedVersion=b.version;
+  const s=fixture(),b=s.boxes[0];s.menus['2026-10-09:dinner']=[];D.confirmMenu(s,b.date,b.meal);D.confirmRoster(s,b.date,b.meal);b.exportedVersion=b.version;
   const before=D.copy(b.items);s.customers[0].currentWeight=80;D.refreshPending(s);
   assert.notDeepEqual(b.items,before);assert.notEqual(b.version,b.exportedVersion);assert.equal(D.workflow(s,b.date,b.meal).rosterReady,false);
   const version=b.version;D.refreshPending(s);assert.equal(b.version,version);
@@ -67,5 +67,5 @@ test('completed boxes freeze allocation, food calories and customer snapshot',()
 test('invalid body units and fallback settings cannot be persisted',()=>{
   const s=fixture();D.validate(s);s.customers[0].height=1.6;assert.throws(()=>D.validate(s),/身高/);
   s.customers[0].height=160;s.customers[0].currentWeight=-5;assert.throws(()=>D.validate(s),/体重/);
-  s.customers[0].currentWeight=60;s.settings.fallbackCalorieBasis='unknown';assert.throws(()=>D.validate(s),/口径/);
+  s.customers[0].currentWeight=60;s.settings.fallbackCalorieBasis='meal';assert.equal(D.mealTarget({},s.settings).kcal,500);
 });

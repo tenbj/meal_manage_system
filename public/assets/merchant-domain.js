@@ -12,7 +12,7 @@
     return state.plans[keyOf(date,meal)] ||= { backups: [], menuConfirmed: '', rosterConfirmed: '' };
   }
   function initial(old = {}) {
-    const state = { version: 1, settings: { name: '我的健康小饭桌', phone: '', labelWidth: 50, labelHeight: 70 }, customers: copy(old.customers || []), dishes: (old.dishes || []).map(d => ({ ...d, nutrition: { source: 'legacy', kcal100: null, basis: 'cooked', reference: d.source || '' }, defaultGrams: d.category === '主食' ? 120 : 150 })), orders: [], menus: {}, boxes: [] };
+    const state = { version: 1, rosterMode: 'manual', creditAdjustments: [], settings: { name: '我的健康小饭桌', phone: '', labelWidth: 50, labelHeight: 70 }, customers: copy(old.customers || []), dishes: (old.dishes || []).map(d => ({ ...d, nutrition: { source: 'legacy', kcal100: null, basis: 'cooked', reference: d.source || '' }, defaultGrams: d.category === '主食' ? 120 : 150 })), orders: [], menus: {}, boxes: [] };
     state.orders = (old.orders || []).map(o => ({ ...o, meals: ['lunch', 'dinner'], weekdays: [0,1,2,3,4,5,6], portions: 1, credits: o.totalMealCredits || 0 }));
     for (const recipe of old.recipes || []) for (const meal of ['lunch', 'dinner']) {
       const ids = Object.values(recipe.meals?.[meal]?.categories || {}).filter(Boolean);
@@ -22,9 +22,9 @@
     return hydrate(state);
   }
   function hydrate(state) {
-    state.plans ||= {};
+    state.plans ||= {}; state.creditAdjustments ||= [];
     // Keep references from historical menus even when their original dish was removed.
-    const ids = new Set(state.dishes.map(d => d.id));
+    const ids = new Set([...state.dishes,...(state.archivedDishes||[])].map(d => d.id));
     for (const item of [...Object.values(state.menus).flat(), ...Object.values(state.plans).flatMap(p=>p.backups||[]), ...state.boxes.flatMap(b => b.items)]) {
       if (!ids.has(item.dishId)) {
         state.dishes.push({ id: item.dishId, name: `历史菜品（${item.dishId}，待补全）`, category: '其他', ingredients: [], defaultGrams: 150, nutrition: { source: 'legacy', kcal100: null, basis: 'cooked', reference: '历史菜品资料缺失' } });
@@ -33,19 +33,17 @@
     }
     return state;
   }
-  function dishOf(state, id) { return state.dishes.find(d => d.id === id); }
+  function dishOf(state, id) { return state.dishes.find(d => d.id === id) || (state.archivedDishes||[]).find(d=>d.id===id); }
   // Mifflin–St Jeor estimates resting energy expenditure; 36% is the shop's meal rule.
   function mealTarget(customer = {}, settings = {}) {
     const gender = customer.gender, age = Number(customer.age), height = Number(customer.height), weight = Number(customer.currentWeight);
-    if (!['女','男'].includes(gender)) return { kcal: null, source: 'missing', message: '补充性别后自动配餐；当前暂用菜单基准克重' };
     if (age > 0 && age < 18) return { kcal: null, source: 'unsupported', message: '未成年人不套用成人公式，请单独确认本餐克重' };
-    if (age >= 18 && age <= 100 && height >= 100 && height <= 250 && weight >= 25 && weight <= 350) {
+    if (['女','男'].includes(gender) && age >= 18 && age <= 100 && height >= 100 && height <= 250 && weight >= 25 && weight <= 350) {
       const bmr = 10 * weight + 6.25 * height - 5 * age + (gender === '男' ? 5 : -161);
       if (bmr <= 0) return { kcal: null, source: 'invalid', message: '身体数据无法得到有效目标，请核对资料' };
       return { kcal: Math.round(bmr * .36), bmr: Math.round(bmr), source: 'profile', message: `静息代谢估算 ${Math.round(bmr)} × 36%` };
     }
-    const base = gender === '男' ? 1600 : 1400, daily = settings.fallbackCalorieBasis === 'daily-base';
-    return { kcal: daily ? Math.round(base * .36) : base, source: 'default', message: daily ? `资料不全，${gender}生默认基础值 ${base} × 36%` : `资料不全，${gender}生默认单餐 ${base} kcal` };
+    return { kcal:500, minKcal:400, maxKcal:600, source:'default', message:'资料不全，默认 500 kcal · 可接受 400–600 kcal' };
   }
   function allocate(state, items, customer) {
     const target = mealTarget(customer, state.settings);
@@ -66,7 +64,7 @@
     return { items: result, target, status:'auto', message:'主食占热量 1/3，其余菜占 2/3；同组按基准份量同比调整，取整到 1 g' };
   }
   function recalculateBox(state, box) {
-    if (box.status === 'completed') return;
+    if (['completed','cancelled'].includes(box.status)) return;
     if (box.custom && !box.overrides) box.portionMode = 'manual';
     if (!box.portionMode) box.portionMode = box.custom ? 'manual' : 'auto';
     const menu = state.menus[keyOf(box.date,box.meal)] || [];
@@ -87,7 +85,73 @@
     menu.forEach((i,n)=>{const actual=box.items[n];if(actual&&actual.dishId!==i.dishId)overrides[i.dishId]={dishId:actual.dishId,grams:dishOf(state,actual.dishId)?.defaultGrams||150};});
     box.overrides=overrides;box.custom=Object.keys(overrides).length>0;box.portionMode='auto';recalculateBox(state,box);
   }
-  function remaining(state, order) { return Math.max(0, Number(order.credits) - state.boxes.filter(b => b.orderId === order.id && b.status === 'completed').length); }
+  function remaining(state, order) { return Number(order.credits) + (state.creditAdjustments||[]).filter(a=>a.orderId===order.id).reduce((n,a)=>n+a.delta,0) - state.boxes.filter(b=>b.orderId===order.id&&(b.status==='completed'||b.status==='cancelled'&&b.chargeCancelled)).length; }
+  function orderKind(order) { return order.kind || (['单次','单次订餐'].includes(order.serviceType)?'single':'plan'); }
+  function orderLabel(state,order) {
+    const peers=state.orders.filter(o=>o.customerId===order.customerId&&orderKind(o)===orderKind(order));
+    return `${orderKind(order)==='plan'?'包餐':'单次'} · 第 ${peers.findIndex(o=>o.id===order.id)+1} ${orderKind(order)==='plan'?'期':'单'}`;
+  }
+  function reserved(state,order) { return state.boxes.filter(b=>b.orderId===order.id&&b.status==='pending').length; }
+  function usableOrders(state,customerId,date,meal) {
+    return state.orders.filter(o=>o.customerId===customerId&&o.status!=='已取消'&&o.startDate<=date&&o.endDate>=date&&o.meals.includes(meal)&&remaining(state,o)-reserved(state,o)>0).sort((a,b)=>(orderKind(a)==='plan'?0:1)-(orderKind(b)==='plan'?0:1)||state.orders.indexOf(a)-state.orders.indexOf(b));
+  }
+  function addDiner(state,customerId,date,meal,idFactory) {
+    if(!state.customers.some(c=>c.id===customerId))throw new Error('请先登记新客户');
+    if(state.boxes.some(b=>b.customerId===customerId&&b.date===date&&b.meal===meal))throw new Error('本餐已有记录，请使用恢复或取消操作，避免重复扣餐');
+    let order=usableOrders(state,customerId,date,meal)[0];
+    if(!order) {
+      order={id:idFactory('order'),customerId,kind:'single',serviceType:'单次',startDate:date,endDate:date,meals:[meal],weekdays:[0,1,2,3,4,5,6],credits:1,portions:1,status:'服务中',paidStatus:'未记录',createdAt:new Date().toISOString()};
+      state.orders.push(order);
+    }
+    const box={id:idFactory('box'),customerId,orderId:order.id,date,meal,status:'pending',items:[],version:1,exportedVersion:0,custom:false};
+    state.boxes.push(box);recalculateBox(state,box);return box;
+  }
+  function cancelBox(state,id,charge,reason) {
+    const b=state.boxes.find(b=>b.id===id);if(!b)throw new Error('未找到餐盒');
+    const rosterWasReady=workflow(state,b.date,b.meal).rosterReady;
+    if(b.status==='cancelled')throw new Error('已取消，无需重复操作');
+    if(!String(reason||'').trim())throw new Error('请填写取消原因');
+    const o=state.orders.find(o=>o.id===b.orderId);if(!o)throw new Error('请先关联订餐记录');
+    if(charge&&b.status!=='completed'&&remaining(state,o)<1)throw new Error('餐次不足，不能扣餐');
+    b.events ||= [];b.events.push({type:'cancel',at:new Date().toISOString(),from:b.status,charge:Boolean(charge),reason:reason.trim(),items:copy(b.items)});
+    b.status='cancelled';b.chargeCancelled=Boolean(charge);b.cancelReason=reason.trim();touch(b);
+    // Removing one diner does not alter the other already-checked boxes.
+    if(rosterWasReady)planOf(state,b.date,b.meal).rosterConfirmed=rosterSignature(state,b.date,b.meal);
+  }
+  function resumeBox(state,id) {
+    const b=state.boxes.find(b=>b.id===id);if(!b||!['paused','cancelled'].includes(b.status))throw new Error('当前记录不能恢复');
+    const o=state.orders.find(o=>o.id===b.orderId);if(!o||remaining(state,o)-reserved(state,o)+(b.chargeCancelled?1:0)<1)throw new Error('该期餐次不足，请先补餐次');
+    b.events ||= [];b.events.push({type:'resume',at:new Date().toISOString(),reason:'商家恢复本餐'});
+    b.status='pending';b.chargeCancelled=false;delete b.customerSnapshot;delete b.settingsSnapshot;
+    b.items=b.items.map(({snapshot,...i})=>i);recalculateBox(state,b);touch(b);
+  }
+  function adjustBalance(state,orderId,newBalance,reason,id) {
+    const o=state.orders.find(o=>o.id===orderId);if(!o||!Number.isInteger(newBalance)||newBalance<0)throw new Error('剩余次数应为非负整数');
+    if(newBalance<reserved(state,o))throw new Error('目标余额少于已安排餐盒，请先取消相应餐盒');
+    if(!String(reason||'').trim())throw new Error('请填写补扣原因');
+    const delta=newBalance-remaining(state,o);if(!delta)throw new Error('剩余次数没有变化');
+    state.creditAdjustments ||= [];state.creditAdjustments.push({id,orderId,delta,reason:reason.trim(),at:new Date().toISOString()});
+  }
+  function menuRepeats(state,date,meal) {
+    const main=state.menus[keyOf(date,meal)]||[], dates=[nextDate(date,-1),date,nextDate(date,1)], conflicts=[];
+    for(const day of dates)for(const other of ['lunch','dinner']) {
+      if(day===date&&other===meal)continue;
+      for(const i of state.menus[keyOf(day,other)]||[])if(main.some(m=>m.dishId===i.dishId))conflicts.push({dishId:i.dishId,date:day,meal:other});
+    }
+    return conflicts;
+  }
+  function purgeLegacyDishes(state) {
+    const old=new Set(state.dishes.map(d=>d.id));
+    for(const b of state.boxes) b.items=b.items.map(i=>old.has(i.dishId)?{...i,snapshot:i.snapshot||copy(dishOf(state,i.dishId))}:i);
+    const referenced=new Set(state.boxes.flatMap(b=>b.items.map(i=>i.dishId)));
+    state.archivedDishes=[...(state.archivedDishes||[]),...state.dishes.filter(d=>referenced.has(d.id))];
+    state.dishes=state.dishes.filter(d=>!old.has(d.id));
+    for(const [key,items] of Object.entries(state.menus)) {
+      state.menus[key]=items.filter(i=>!old.has(i.dishId));
+    }
+    for(const plan of Object.values(state.plans||{})){plan.backups=plan.backups.filter(i=>!old.has(i.dishId));plan.menuConfirmed='';plan.rosterConfirmed='';}
+    state.rosterMode='manual';state.settings.fallbackCalorieBasis='fixed-500';state.catalogResetAt=new Date().toISOString();return old.size;
+  }
   function validNutrition(dish) {
     const n = dish?.nutrition;
     return !!n && ['manual', 'boohee'].includes(n.source) && n.kcal100 !== null && n.kcal100 !== '' && Number.isFinite(Number(n.kcal100)) && Number(n.kcal100) >= 0 && ['cooked', 'ready'].includes(n.basis);
@@ -121,12 +185,12 @@
   function itemCheck(state, box, item) { return checks(state,{...box,items:[item]}); }
   function menuSignature(state,date,meal) { return JSON.stringify({main:state.menus[keyOf(date,meal)]||[],backups:planOf(state,date,meal).backups}); }
   function rosterSignature(state,date,meal) {
-    return JSON.stringify(state.boxes.filter(b=>b.date===date&&b.meal===meal&&b.status!=='paused').map(b=>({id:b.id,items:b.items.map(i=>({dishId:i.dishId,grams:i.grams,nutrition:(i.snapshot||dishOf(state,i.dishId))?.nutrition})),allocation:b.allocation,customer:b.customerSnapshot||state.customers.find(c=>c.id===b.customerId)})));
+    return JSON.stringify(state.boxes.filter(b=>b.date===date&&b.meal===meal&&!['paused','cancelled'].includes(b.status)).map(b=>({id:b.id,items:b.items.map(i=>({dishId:i.dishId,grams:i.grams,nutrition:(i.snapshot||dishOf(state,i.dishId))?.nutrition})),allocation:b.allocation,customer:b.customerSnapshot||state.customers.find(c=>c.id===b.customerId)})));
   }
   function workflow(state,date,meal) {
-    const plan=planOf(state,date,meal), main=state.menus[keyOf(date,meal)]||[], live=state.boxes.filter(b=>b.date===date&&b.meal===meal&&b.status!=='paused');
-    const menuValid=main.length>0&&plan.backups.length>=1&&plan.backups.length<=2&&!plan.backups.some(i=>main.some(m=>m.dishId===i.dishId));
-    const menuReady=menuValid&&plan.menuConfirmed===menuSignature(state,date,meal);
+    const plan=planOf(state,date,meal), main=state.menus[keyOf(date,meal)]||[], live=state.boxes.filter(b=>b.date===date&&b.meal===meal&&!['paused','cancelled'].includes(b.status));
+    const menuValid=main.length>0&&plan.backups.length===2&&plan.backups.filter(i=>['荤','海鲜'].includes(dishOf(state,i.dishId)?.category)).length===1&&plan.backups.filter(i=>dishOf(state,i.dishId)?.category==='素').length===1&&!plan.backups.some(i=>main.some(m=>m.dishId===i.dishId));
+    const menuReady=menuValid&&!menuRepeats(state,date,meal).length&&plan.menuConfirmed===menuSignature(state,date,meal);
     const conflicts=live.filter(b=>checks(state,b).blocked);
     const missingNutrition=live.filter(b=>!nutrition(state,b.items).complete);
     const missingAddress=live.filter(b=>{const c=b.customerSnapshot||state.customers.find(c=>c.id===b.customerId);return c?.fulfillment!=='pickup'&&!String(c?.address||'').trim();});
@@ -134,7 +198,8 @@
     return {menuValid,menuReady,rosterReady,live,conflicts,missingNutrition,missingAddress,stage:rosterReady?3:menuReady?2:1};
   }
   function confirmMenu(state,date,meal) {
-    if(!workflow(state,date,meal).menuValid)throw new Error('请选择主菜单，并准备 1–2 道不重复的备用菜');
+    if(!workflow(state,date,meal).menuValid)throw new Error('请选择主菜单，并准备两道不重复的备用菜：一荤一素');
+    if(menuRepeats(state,date,meal).length)throw new Error('与同日另一餐或相邻日期有重复菜，请更换后确认');
     const plan=planOf(state,date,meal);plan.menuConfirmed=menuSignature(state,date,meal);sync(state,date,meal);
   }
   function confirmRoster(state,date,meal) {
@@ -180,7 +245,7 @@
   function sync(state, date, meal) {
     const menu = state.menus[`${date}:${meal}`] || [];
     const weekday = new Date(`${date}T12:00:00+08:00`).getUTCDay();
-    for (const order of state.orders) {
+    for (const order of state.rosterMode==='manual'?[]:state.orders) {
       if (!['服务中','未开始'].includes(order.status) || order.startDate > date || order.endDate < date || !order.meals.includes(meal) || !order.weekdays.includes(weekday)) continue;
       const available = remaining(state, order);
       for (let p = 0; p < order.portions; p++) {
@@ -190,13 +255,13 @@
         state.boxes.push({ id, orderId: order.id, customerId: order.customerId, date, meal, items: copy(menu), status: 'pending', version: 1, exportedVersion: 0, custom: false });
       }
     }
-    for (const box of state.boxes.filter(b => b.date === date && b.meal === meal && b.status !== 'completed')) {
+    for (const box of state.boxes.filter(b => b.date === date && b.meal === meal && !['completed','cancelled'].includes(b.status))) {
       recalculateBox(state,box);
     }
   }
   function touch(box) { box.version = (box.version || 1) + 1; }
   function finish(state, ids) {
-    const boxes = ids.map(id => state.boxes.find(b => b.id === id)).filter(b => b && b.status === 'pending');
+    const boxes = [...new Set(ids)].map(id => state.boxes.find(b => b.id === id)).filter(b => b && b.status === 'pending');
     const counts = new Map();
     for (const box of boxes) {
       if (!box.items.length) throw new Error('请先设置菜单');
@@ -211,6 +276,7 @@
       box.customerSnapshot = copy(state.customers.find(c => c.id === box.customerId));
       box.settingsSnapshot = copy(state.settings);
       box.status = 'completed'; box.completedAt = new Date().toISOString();
+      box.events ||= [];box.events.push({type:'complete',at:box.completedAt,reason:'分装完成，扣除 1 次',items:copy(box.items)});
     }
     return boxes.length;
   }
@@ -222,7 +288,9 @@
     }
     if (!String(state.settings.name || '').trim()) throw new Error('请填写店名');
     if (![state.settings.labelWidth, state.settings.labelHeight].every(n => Number.isFinite(n) && n >= 30 && n <= 150)) throw new Error('标签尺寸应在 30–150 mm 之间');
-    if(state.settings.fallbackCalorieBasis&&!['daily-base','meal'].includes(state.settings.fallbackCalorieBasis))throw new Error('默认热量口径不正确');
+    const adjustments=state.creditAdjustments||[];
+    if(!Array.isArray(adjustments)||new Set(adjustments.map(a=>a.id)).size!==adjustments.length)throw new Error('餐次调整流水存在重复记录');
+    for(const a of adjustments)if(!a.id||!state.orders.some(o=>o.id===a.orderId)||!Number.isInteger(a.delta)||!String(a.reason||'').trim())throw new Error('餐次调整必须关联订单，填写整数和原因');
     for (const c of state.customers) {
       if (!String(c.name || '').trim()) throw new Error('请填写客户称呼');
       if(c.gender&&!['男','女'].includes(c.gender))throw new Error('请选择有效性别或留空');
@@ -243,5 +311,5 @@
     for (const items of lists) for (const i of items) if (!dishOf(state, i.dishId) || !Number.isFinite(Number(i.grams)) || Number(i.grams) <= 0 || Number(i.grams) > 10000) throw new Error('请填写有效的菜品克重（1–10000 g）');
     return state;
   }
-  return { copy, today, nextDate, initial, hydrate, dishOf, remaining, validNutrition, nutrition, checks, itemCheck, sync, touch, finish, validate, planOf, workflow, confirmMenu, confirmRoster, setMenu, setBoxItems, replaceWithBackup, mealTarget, allocate, recalculateBox, refreshPending, restoreAutomatic };
+  return { reserved, usableOrders, addDiner, cancelBox, resumeBox, adjustBalance, orderKind, orderLabel, menuRepeats, purgeLegacyDishes, copy, today, nextDate, initial, hydrate, dishOf, remaining, validNutrition, nutrition, checks, itemCheck, sync, touch, finish, validate, planOf, workflow, confirmMenu, confirmRoster, setMenu, setBoxItems, replaceWithBackup, mealTarget, allocate, recalculateBox, refreshPending, restoreAutomatic };
 });
