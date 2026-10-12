@@ -38,3 +38,16 @@ test('cancelling one diner leaves other confirmed packing boxes ready',()=>{
   const a=D.addDiner(s,'c','2026-10-12','lunch',id);D.addDiner(s,'c2','2026-10-12','lunch',id);D.confirmMenu(s,a.date,a.meal);D.confirmRoster(s,a.date,a.meal);
   D.cancelBox(s,a.id,false,'临时有事');assert.equal(D.workflow(s,a.date,a.meal).rosterReady,true);assert.equal(D.workflow(s,a.date,a.meal).live.length,1);
 });
+
+test('incomplete calories cannot enter menus, reserves, boxes or serving, while history remains readable',()=>{
+  const s=fixture(),date='2026-10-12',old=D.copy(s);s.dishes[1].nutrition={source:'legacy',kcal100:null,basis:'cooked'};
+  assert.equal(D.workflow(s,date,'lunch').menuValid,false);assert.throws(()=>D.confirmMenu(s,date,'lunch'),/成品热量/);
+  assert.throws(()=>D.setMenu(s,date,'dinner',[{dishId:'meat',grams:100}]),/成品热量/);
+  const b=D.addDiner(s,'c',date,'lunch',id);assert.throws(()=>D.finish(s,[b.id]),/成品热量/);assert.equal(D.remaining(s,s.orders[0]),2);
+  assert.throws(()=>D.setBoxItems(s,b,[{dishId:'meat',grams:100}]),/成品热量/);
+  assert.throws(()=>D.validateNutritionChanges(s,old),/完整的成品热量/);
+  const legacy=D.copy(s),next=D.copy(s);next.customers[0].name='更新昵称';assert.doesNotThrow(()=>D.validateNutritionChanges(next,legacy));
+  next.menus[date+':dinner']=[{dishId:'meat',grams:120}];assert.throws(()=>D.validateNutritionChanges(next,legacy),/成品热量/);
+  delete next.menus[date+':dinner'];D.planOf(next,date,'dinner').backups=[{dishId:'meat',grams:100}];assert.throws(()=>D.validateNutritionChanges(next,legacy),/成品热量/);
+  for(const kcal100 of [null,undefined,'','  ',false,{},NaN,-1])assert.equal(D.validNutrition({nutrition:{source:'manual',basis:'cooked',kcal100}}),false);
+});

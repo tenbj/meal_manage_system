@@ -11,7 +11,7 @@
   const btn = (label, action, extra = '', cls = '') => `<button type="button" class="${cls}" data-action="${action}" ${extra}>${label}</button>`;
   const input = (label, name, value = '', type = 'text', attrs = '') => `<label class="field">${label}<input name="${name}" type="${type}" value="${h(value)}" ${attrs}></label>`;
   const options = (values, selected) => values.map(([v,l]) => `<option value="${h(v)}" ${v === selected ? 'selected' : ''}>${h(l)}</option>`).join('');
-  let state, revision, saving = false, page = 'today', date = D.nextDate(D.today()), step = 1, meal = 'lunch', query = '', onlyAttention = false, selected = new Set(), previewId = '', timer, viewMode='planning', customerFilter='all', foodResults=[], foodSource='', foodSearchPage=1, foodHasMore=false;
+  let state, revision, saving = false, page = 'today', date = D.nextDate(D.today()), step = 1, meal = 'lunch', query = '', onlyAttention = false, selected = new Set(), previewId = '', timer, viewMode='planning', customerFilter='all', foodResults=[], foodSource='', foodSearchPage=1, foodHasMore=false, dialogReturn=null, pickerDraft=null, foodContext=null, foodRequestId=0;
   const currentMenu = () => state.menus[`${date}:${meal}`] || [];
   const boxes = () => state.boxes.filter(b => b.date === date && b.meal === meal);
   const customer = id => state.customers.find(c => c.id === id);
@@ -77,12 +77,12 @@
   }
   function menuStage(w,plan) {
     const repeats=D.menuRepeats(state,date,meal);
-    return `${repeats.length?`<div class="notice"><b>请换掉重复菜</b> · ${repeats.map(r=>`${h(D.dishOf(state,r.dishId)?.name)}（${r.date} ${mealName(r.meal)}）`).join('、')}</div>`:''}<div class="plan-layout"><div class="stack"><section class="card"><div class="section-head"><div><h2>本餐主菜单</h2><span class="muted">${menuCounts(currentMenu())}，先选菜，再按客户目标自动算克重</span></div><div class="actions">${btn('选择主菜','pick','','primary')}</div></div><div class="body"><div class="hint">这里是基准份量，决定同组菜品的搭配比例。每盒克重会按客户目标自动换算，主食占本餐热量 1/3。${btn("查看计算规则","portion-rules","","text small")}</div>${currentMenu().length?menuRows(currentMenu()):'<div class="empty"><strong>明天做哪些菜？</strong>主食、荤菜、素菜自由组合，不限制固定搭配。</div>'}</div></section><section class="card reserve-card"><div class="section-head"><div><h2>备用菜 <span class="tag">${plan.backups.length} / 2 道</span></h2><span class="muted">准备 2 道（一荤一素），用于替换忌口冲突的主菜</span></div>${btn('选择备用菜','pick-backups')}</div><div class="body">${plan.backups.length?menuRows(plan.backups,true):'<div class="empty compact">还没有备用菜。选好后，下一步可直接点击替换。</div>'}<div class="hint">备用菜不会默认装进每盒；实际换入后，才计入那份餐的热量和分装总量。</div></div></section><div class="stage-footer"><span class="muted">${w.menuValid?'菜单已准备好，下一步核对谁来吃。':'请选择主菜和 2 道（一荤一素）备用菜。'}</span>${btn('菜单定好了，确认用餐人 →','confirm-menu',w.menuValid&&!repeats.length?'':'disabled','primary')}</div></div><aside class="card planning-note"><div class="body"><div class="eyebrow">提前一晚，安排清楚</div><h2 style="margin:10px 0 20px">${date.slice(5)} · ${mealName(meal)}</h2><div class="prep-row"><span>主菜单</span><b>${currentMenu().length} 道</b></div><div class="prep-row"><span>备用菜</span><b>${plan.backups.length} 道</b></div><div class="prep-row"><span>订餐已排入</span><b>${w.live.length} 份</b></div><p class="muted">先把每道菜的分装克重定好。个别客户需要不同分量，下一步单独调整。</p><div class="workflow-tip">主菜和备用菜可以随时改。已经打印的餐盒受影响时，会提醒重打。</div></div></aside></div>`;
+    return `${repeats.length?`<div class="notice"><b>请换掉重复菜</b> · ${repeats.map(r=>`${h(D.dishOf(state,r.dishId)?.name)}（${r.date} ${mealName(r.meal)}）`).join('、')}</div>`:''}<div class="plan-layout"><div class="stack"><section class="card"><div class="section-head"><div><h2>本餐主菜单</h2><span class="muted">${menuCounts(currentMenu())}，先选菜，再按客户目标自动算克重</span></div><div class="actions">${btn('选择主菜','pick','','primary')}</div></div><div class="body"><div class="hint">这里是基准份量，决定同组菜品的搭配比例。每盒克重会按客户目标自动换算，主食占本餐热量 1/3。${btn("查看计算规则","portion-rules","","text small")}</div>${currentMenu().length?menuRows(currentMenu()):'<div class="empty"><strong>明天做哪些菜？</strong>主食、荤菜、素菜自由组合，不限制固定搭配。</div>'}</div></section><section class="card reserve-card"><div class="section-head"><div><h2>备用菜 <span class="tag">${plan.backups.length} / 2 道</span></h2><span class="muted">准备 2 道（一荤一素），用于替换忌口冲突的主菜</span></div>${btn('选择备用菜','pick-backups')}</div><div class="body">${plan.backups.length?menuRows(plan.backups,true):'<div class="empty compact">还没有备用菜。选好后，下一步可直接点击替换。</div>'}<div class="hint">备用菜不会默认装进每盒；实际换入后，才计入那份餐的热量和分装总量。</div></div></section><div class="stage-footer"><span class="muted">${w.menuValid?'菜单已准备好，下一步核对谁来吃。':'主菜与一荤一素备用菜均需有完整热量。'}</span>${btn('菜单定好了，确认用餐人 →','confirm-menu',w.menuValid&&!repeats.length?'':'disabled','primary')}</div></div><aside class="card planning-note"><div class="body"><div class="eyebrow">提前一晚，安排清楚</div><h2 style="margin:10px 0 20px">${date.slice(5)} · ${mealName(meal)}</h2><div class="prep-row"><span>主菜单</span><b>${currentMenu().length} 道</b></div><div class="prep-row"><span>备用菜</span><b>${plan.backups.length} 道</b></div><div class="prep-row"><span>订餐已排入</span><b>${w.live.length} 份</b></div><p class="muted">先把每道菜的分装克重定好。个别客户需要不同分量，下一步单独调整。</p><div class="workflow-tip">主菜和备用菜可以随时改。已经打印的餐盒受影响时，会提醒重打。</div></div></aside></div>`;
   }
   function rosterStage(w) {
     const rows=boxes(), active=rows.filter(b=>!['paused','cancelled'].includes(b.status));
     const shown=onlyAttention?rows.filter(b=>!['paused','cancelled'].includes(b.status)&&(D.checks(state,b).blocked||w.missingAddress.some(x=>x.id===b.id))):rows;
-    return `<section class="card"><div class="section-head"><div><h2>确认这餐谁来吃</h2><span class="muted">已安排 ${active.length} 份 · 取消 / 暂停 ${rows.length-active.length} 份 · 忌口待处理 ${w.conflicts.length} 份</span></div><div class="actions">${btn('＋ 添加用餐人','add-diners')}${btn('登记新客户','customer','','primary')}</div></div><div class="roster-filter"><label class="flex muted"><input type="checkbox" id="attention" ${onlyAttention?'checked':''}>只看忌口或地址待处理</label><span class="muted">取消时由你决定是否扣餐次，并记录原因</span></div>${shown.length?`<div class="table-wrap"><table class="roster-table"><thead><tr><th>吃这餐</th><th>客户 / 配送</th><th>实际装盒内容</th><th>核对与调整</th></tr></thead><tbody>${shown.map(boxRow).join('')}</tbody></table></div>`:`<div class="empty"><strong>${onlyAttention?'没有待处理的用餐人':'还没有人安排这餐'}</strong>${onlyAttention?'可以继续生成标签。':'先登记客户，再通过“添加用餐人”统一安排本餐。'}</div>`}<div class="footer-actions"><div>${btn('← 改菜单','step','data-step="1"','text')}<span class="muted">${w.conflicts.length?'先用备用菜解决冲突':w.missingAddress.length?'请补齐配送地址或选自提':active.length?'名单已就绪':'先添加用餐人'}</span></div>${btn('名单确认，生成标签 →','confirm-roster',!active.length||w.conflicts.length||w.missingAddress.length||!w.menuReady?'disabled':'','primary')}</div></section>`;
+    return `<section class="card"><div class="section-head"><div><h2>确认这餐谁来吃</h2><span class="muted">已安排 ${active.length} 份 · 取消 / 暂停 ${rows.length-active.length} 份 · 忌口待处理 ${w.conflicts.length} 份</span></div><div class="actions">${btn('＋ 添加用餐人','add-diners')}${btn('登记新客户','customer','','primary')}</div></div><div class="roster-filter"><label class="flex muted"><input type="checkbox" id="attention" ${onlyAttention?'checked':''}>只看忌口或地址待处理</label><span class="muted">取消时由你决定是否扣餐次，并记录原因</span></div>${shown.length?`<div class="table-wrap"><table class="roster-table"><thead><tr><th>吃这餐</th><th>客户 / 配送</th><th>实际装盒内容</th><th>核对与调整</th></tr></thead><tbody>${shown.map(boxRow).join('')}</tbody></table></div>`:`<div class="empty"><strong>${onlyAttention?'没有待处理的用餐人':'还没有人安排这餐'}</strong>${onlyAttention?'可以继续生成标签。':'先登记客户，再通过“添加用餐人”统一安排本餐。'}</div>`}<div class="footer-actions"><div>${btn('← 改菜单','step','data-step="1"','text')}<span class="muted">${w.conflicts.length?'先用备用菜解决冲突':w.missingAddress.length?'请补齐配送地址或选自提':active.length?'名单已就绪':'先添加用餐人'}</span></div>${btn('名单确认，生成标签 →','confirm-roster',!active.length||w.conflicts.length||w.missingAddress.length||w.missingNutrition.length||!w.menuReady?'disabled':'','primary')}</div></section>`;
   }
   function boxRow(b) {
     const c=b.customerSnapshot||customer(b.customerId),check=D.checks(state,b),paused=['paused','cancelled'].includes(b.status);
@@ -110,19 +110,20 @@
   function portionRules() {
     modal('热量和克重怎么算',`<div class="rule-steps"><h3>1. 确定这一餐的目标</h3><p>身体资料齐全的成年人，使用 Mifflin–St Jeor 公式估算静息代谢，再乘 36%。午餐、晚餐各自计算同一目标。</p><div class="hint">女：10 × 体重 kg ＋ 6.25 × 身高 cm − 5 × 年龄 − 161<br>男：10 × 体重 kg ＋ 6.25 × 身高 cm − 5 × 年龄 ＋ 5</div><p>例如：女，30 岁，160 cm，60 kg → 估算 1289 kcal/日 → 本餐目标 464 kcal。</p><p>身体资料不全时，不分性别统一以 500 kcal 为目标；实际装盒热量在 400–600 kcal 范围内即可。</p><h3>2. 主食分到 1/3 的热量</h3><p>464 kcal 的一餐：主食约 155 kcal，其余菜约 309 kcal。这里的 1/3 是热量比例，不是重量或餐盒体积。</p><h3>3. 用成品热量反推克重</h3><p>克重 ＝ 分配到的热量 ÷ 每 100 g 成品热量 × 100，取整到 1 g。多个主食在主食组内分配，其余菜在菜组内分配。</p><p>同组按菜单基准份量同比缩放：例如两道菜基准 150 g 和 100 g，自动配餐后仍保持约 3:2 的克重比例。每种食谱与热量密度不同，最终克重也会不同。</p><h3>菜单里的基准克重</h3><p>由商家设定，只用于确定搭配比例。历史导入初值：主食 120 g、其他菜 150 g；新菜初值 150 g。这些不是根据客户计算的数字。可在菜品资料或本餐菜单修改。</p><div class="notice">标签上的热量按最终克重重新求和，取整可能与目标略有差异。缺少菜品成品热量或主食时，暂用基准克重并提示原因；手动改克重后不会被自动覆盖。</div><p class="muted">公式是静息代谢估算；36% 和 1/3 是本店配餐规则，不等于个人全天营养需求。菜品热量只使用薄荷健康或商家录入，烹调用油需计入成品数据。</p><a href="https://pubmed.ncbi.nlm.nih.gov/2305711/" target="_blank" rel="noopener">查看公式原始研究 ↗</a></div>`,null);
   }
-  function modal(title, body, submitLabel, handler) {
+  function modal(title, body, submitLabel, handler, onClose=null) {
     const dialog=$('#dialog'); if(dialog.open)dialog.close();
     dialog.innerHTML=`<form id="modalForm"><div class="modal-head"><h2>${title}</h2>${btn('×','close','aria-label="关闭"','text')}</div><div class="modal-body">${body}<div id="formError" class="form-error" role="alert"></div></div><div class="modal-foot">${btn('关闭','close')}${submitLabel?`<button type="submit" class="primary">${submitLabel}</button>`:''}</div></form>`;
-    dialog.showModal();
+    dialogReturn=onClose;dialog.oncancel=e=>{e.preventDefault();closeModal();};dialog.showModal();
     $('#modalForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{const close=await handler(new FormData(event.currentTarget));if(close!==false)dialog.close();}catch(error){$('#formError').textContent=error.message;}finally{button.disabled=false;}};
   }
-  function dishModal(id) {
-    const d=state.dishes.find(d=>d.id===id), known=D.validNutrition(d);
-    modal(d?'编辑菜品':'手动添加菜品',`${!known&&d?'<div class="notice">旧版数值没有自动带入。请核对依据后填写，保存为商家录入。</div>':''}<div class="form-grid">${input('菜品名称','name',d?.name||'','text','required maxlength="120"')}<label class="field">分类<select name="category">${options(['主食','荤','素','海鲜'].map(x=>[x,x]),d?.category||'荤')}</select></label>${input('每 100 g 热量 · kcal','kcal',known?d.nutrition.kcal100:'','number','required min="0" max="900" step="0.01"'+(d?.nutrition?.source==='boohee'?' readonly':''))}${input('基准份量 · g（决定搭配比例）','grams',d?.defaultGrams||150,'number','required min="1" max="10000"')}<label class="field wide">重量口径<select name="basis">${options([['cooked','烹调后的成品熟重'],['ready','包装即食 / 可食部分重量']],d?.nutrition?.basis||'cooked')}</select></label><div class="wide">${input('热量数值依据','reference',known?d.nutrition.reference:'','text','required placeholder="如：产品包装营养标签、配方核算记录"')}${input('实际食材（逗号分隔，用于忌口核对）','ingredients',(d?.ingredients||[]).join('，'),'text','placeholder="如：鸡肉，番茄，食用油"')}</div></div><div class="muted">基准份量由商家设定，不是客户最终克重；新菜初始填 150 g，可自行调整。${d?.nutrition?.source==='boohee'?'此菜的薄荷热量与来源为只读，保存仅更新商家的分类、基准克重及实际食材。':'手动填写的热量会标记为商家录入。'}缺少食材时不能自动判断忌口。</div>`,'保存菜品',async f=>save(s=>{
-      const item={...(d||{}),id:d?.id||uid('dish'),name:f.get('name').trim(),category:f.get('category'),ingredients:list(f.get('ingredients')),defaultGrams:Number(f.get('grams')),nutrition:d?.nutrition?.source==='boohee'?d.nutrition:{source:'manual',kcal100:Number(f.get('kcal')),basis:f.get('basis'),reference:f.get('reference').trim(),updatedAt:new Date().toISOString()}};
+  function closeModal() { const back=dialogReturn;dialogReturn=null;$('#dialog').close();if(back)back(); }
+  function dishModal(id,onSaved=null,defaults={},onBack=null) {
+    const d=state.dishes.find(d=>d.id===id), known=D.validNutrition(d),itemId=d?.id||uid('dish');
+    modal(d?'编辑菜品':'手动添加菜品',`${!known&&d?'<div class="notice">旧版数值没有自动带入。请核对依据后填写，保存为商家录入。</div>':''}<div class="form-grid">${input('菜品名称','name',d?.name||defaults.name||'','text','required maxlength="120"')}<label class="field">分类<select name="category">${options(['主食','荤','素','海鲜'].map(x=>[x,x]),d?.category||defaults.category||'荤')}</select></label>${input('每 100 g 热量 · kcal','kcal',known?d.nutrition.kcal100:'','number','required min="0" max="900" step="0.01"'+(d?.nutrition?.source==='boohee'?' readonly':''))}${input('基准份量 · g（决定搭配比例）','grams',d?.defaultGrams||150,'number','required min="1" max="10000"')}<label class="field wide">重量口径<select name="basis">${options([['cooked','烹调后的成品熟重'],['ready','包装即食 / 可食部分重量']],d?.nutrition?.basis||'cooked')}</select></label><div class="wide">${input('热量数值依据','reference',known?d.nutrition.reference:'','text','required placeholder="如：产品包装营养标签、配方核算记录"')}${input('实际食材（逗号分隔，用于忌口核对）','ingredients',(d?.ingredients||[]).join('，'),'text','placeholder="如：鸡肉，番茄，食用油"')}</div></div><div class="muted">基准份量由商家设定，不是客户最终克重；新菜初始填 150 g，可自行调整。${d?.nutrition?.source==='boohee'?'此菜的薄荷热量与来源为只读，保存仅更新商家的分类、基准克重及实际食材。':'手动填写的热量会标记为商家录入。'}缺少食材时不能自动判断忌口。</div>`,onSaved?'保存并选入本餐':'保存菜品',async f=>{await save(s=>{
+      const item={...(d||{}),id:itemId,name:f.get('name').trim(),category:f.get('category'),ingredients:list(f.get('ingredients')),defaultGrams:Number(f.get('grams')),nutrition:d?.nutrition?.source==='boohee'?d.nutrition:{source:'manual',kcal100:Number(f.get('kcal')),basis:f.get('basis'),reference:f.get('reference').trim(),updatedAt:new Date().toISOString()}};
       const at=s.dishes.findIndex(x=>x.id===item.id);if(at<0)s.dishes.push(item);else s.dishes[at]=item;
       s.boxes.filter(b=>!['completed','cancelled'].includes(b.status)&&b.items.some(i=>i.dishId===item.id)).forEach(D.touch);
-    },'菜品已保存，可直接用于出餐'));
+    },'菜品已保存，可直接用于出餐');if(onSaved){onSaved(itemId);return false;}},onBack);
   }
   function customerModal(id) {
     const c=customer(id);
@@ -145,15 +146,32 @@
       s.orders.push({id:uid('order'),customerId,kind:'plan',serviceType:'包餐',createdAt:new Date().toISOString(),startDate:f.get('startDate'),endDate:f.get('endDate'),meals:f.get('meal')==='both'?['lunch','dinner']:[f.get('meal')],weekdays:[0,1,2,3,4,5,6],portions:1,credits:Number(f.get('credits')),price:f.get('price')===''?null:Number(f.get('price')),status:'服务中',paidStatus:f.get('paidStatus'),notes:f.get('notes')});
     },'已保存新一期包餐，请在备餐工作台添加用餐人'));
   }
-  function pickModal(reserve=false) {
-    const chosen=reserve?D.planOf(state,date,meal).backups:currentMenu();
-    const other=reserve?currentMenu():D.planOf(state,date,meal).backups;
-    modal(reserve?'选择 2 道（一荤一素）备用菜':'选择本餐主菜',`<input class="search" id="pickSearch" placeholder="搜索常用菜" aria-label="搜索常用菜"><div class="pill-row" style="margin-top:12px"><select id="pickCategory" aria-label="筛选菜品分类">${options([['','全部分类'],['荤','荤菜'],['素','素菜'],['主食','主食'],['海鲜','海鲜']], '')}</select><span class="muted">${reserve?'备用菜只在需要时替换，不默认出餐':'荤素数量自由搭配，勾选需要的菜'}</span></div><div class="pick-list">${state.dishes.map(d=>`<label class="pick-row" data-name="${h(d.name)}" data-category="${h(d.category)}"><input name="dish" type="checkbox" value="${h(d.id)}" ${chosen.some(i=>i.dishId===d.id)?'checked':''} ${other.some(i=>i.dishId===d.id)?'disabled':''}><span class="grow">${h(d.name)} ${other.some(i=>i.dishId===d.id)?`<small class="muted">已选为${reserve?'主菜':'备用菜'}</small>`:''}</span>${sourceTag(d)}</label>`).join('')}</div>`,'使用这些菜',async f=>{
-      const ids=f.getAll('dish');if(reserve&&(ids.length!==2||ids.filter(id=>['荤','海鲜'].includes(D.dishOf(state,id).category)).length!==1||ids.filter(id=>D.dishOf(state,id).category==='素').length!==1))throw new Error('备用菜必须正好一荤一素');
-      await save(s=>{const items=ids.map(id=>chosen.find(i=>i.dishId===id)||{dishId:id,grams:D.dishOf(s,id).defaultGrams||150});if(reserve)D.planOf(s,date,meal).backups=items;else D.setMenu(s,date,meal,items);},reserve?'备用菜已保存':'主菜单已更新');
+  function pickModal(reserve=false,draft=null) {
+    const chosen=reserve?D.planOf(state,date,meal).backups:currentMenu(),other=reserve?currentMenu():D.planOf(state,date,meal).backups;
+    pickerDraft=draft||{reserve,ids:chosen.map(i=>i.dishId),query:'',category:''};draft=pickerDraft;
+    modal(reserve?'选择 2 道（一荤一素）备用菜':'选择本餐主菜',`<input class="search" id="pickSearch" placeholder="先搜我的菜品，没有就直接添加" aria-label="搜索常用菜" maxlength="30" value="${h(draft.query)}"><div class="pill-row" style="margin-top:12px"><select id="pickCategory" aria-label="筛选菜品分类">${options([['','全部分类'],['荤','荤菜'],['素','素菜'],['主食','主食'],['海鲜','海鲜']],draft.category)}</select><span class="muted">热量完整才可勾选 · ${reserve?'固定一荤一素':'荤素数量自由搭配'}</span></div><div id="pickSelected" class="pick-selected"></div><div class="pick-list">${state.dishes.map(d=>{const blocked=other.some(i=>i.dishId===d.id),ready=D.validNutrition(d);return `<div class="pick-row" data-name="${h(d.name)}" data-category="${h(d.category)}"><label class="pick-option grow"><input name="dish" type="checkbox" value="${h(d.id)}" ${draft.ids.includes(d.id)?'checked':''} ${blocked||!ready?'disabled':''}><span>${h(d.name)}<small class="customer-note">${blocked?`已选为${reserve?'主菜':'备用菜'}`:ready?`${d.nutrition.kcal100} kcal / 100g`:'请先补全成品热量'}</small></span></label>${ready?sourceTag(d):btn('补全并选入','pick-edit',`data-id="${h(d.id)}"`,'text small')}</div>`;}).join('')}</div><div id="pickEmpty" class="empty compact" hidden>我的菜品中没有匹配结果。</div><div class="pick-add"><div><b>没找到想要的菜？</b><small>在这里添加，自动存入菜品库，并勾选到本餐。</small></div><div class="actions">${btn('去薄荷搜索','pick-online','','primary')}${btn('手动新建','pick-create')}</div></div>`,'使用这些菜',async()=>{
+      capturePicker();const ids=draft.ids;
+      if(reserve&&(ids.length!==2||ids.filter(id=>['荤','海鲜'].includes(D.dishOf(state,id).category)).length!==1||ids.filter(id=>D.dishOf(state,id).category==='素').length!==1))throw new Error('备用菜必须正好一荤一素');
+      await save(s=>{const items=ids.map(id=>chosen.find(i=>i.dishId===id)||{dishId:id,grams:D.dishOf(s,id).defaultGrams||150});D.requireNutrition(s,items);if(reserve)D.planOf(s,date,meal).backups=items;else D.setMenu(s,date,meal,items);},reserve?'备用菜已保存':'主菜单已更新');pickerDraft=null;
     });
-    const filter=()=>document.querySelectorAll('.pick-row').forEach(row=>row.hidden=!row.dataset.name.includes($('#pickSearch').value)||!!$('#pickCategory').value&&row.dataset.category!==$('#pickCategory').value);
-    $('#pickSearch').oninput=filter;$('#pickCategory').onchange=filter;
+    const filter=()=>{
+      capturePicker();let visible=0;document.querySelectorAll('.pick-row').forEach(row=>{row.hidden=!row.dataset.name.toLowerCase().includes(draft.query.toLowerCase())||!!draft.category&&row.dataset.category!==draft.category;if(!row.hidden)visible++;});
+      $('#pickEmpty').hidden=visible>0;$('#pickSelected').textContent=`已勾选 ${draft.ids.length} 道${draft.ids.length?'：'+draft.ids.map(id=>D.dishOf(state,id)?.name).join('、'):''}`;
+    };
+    $('#pickSearch').oninput=filter;$('#pickSearch').onkeydown=e=>{if(e.key==='Enter')e.preventDefault();};$('#pickCategory').onchange=filter;$('#dialog').querySelectorAll('[name=dish]').forEach(el=>el.onchange=filter);filter();
+  }
+  function capturePicker() {
+    if(!pickerDraft||!$('#pickSearch'))return pickerDraft;
+    pickerDraft.ids=[...$('#dialog').querySelectorAll('[name=dish]:checked:not(:disabled)')].map(el=>el.value);
+    pickerDraft.query=$('#pickSearch').value.trim();pickerDraft.category=$('#pickCategory').value;return pickerDraft;
+  }
+  function returnToPicker(draft,id) {
+    if(id){const other=draft.reserve?currentMenu():D.planOf(state,date,meal).backups;
+      if(other.some(i=>i.dishId===id))toast('该菜已在另一组菜单，请先移除后再选');
+      else if(!draft.ids.includes(id))draft.ids.push(id);
+      draft.query='';draft.category='';
+    }
+    pickModal(draft.reserve,draft);
   }
   function replacementModal(id) {
     const box=state.boxes.find(b=>b.id===id);if(!box||box.status==='completed')return;
@@ -178,38 +196,43 @@
     modal(`调整 ${h(D.orderLabel(state,o))} 的剩余次数`,`<p>当前剩余 <b>${D.remaining(state,o)}</b> 次，其中已安排 ${D.reserved(state,o)} 次。修改会生成补扣流水，原购买次数不变。</p>${input('调整后的剩余次数','balance',D.remaining(state,o),'number','required min="0" step="1"')}${input('调整原因','reason','','text','required')}`,'保存调整流水',async f=>save(s=>D.adjustBalance(s,id,Number(f.get('balance')),f.get('reason'),uid('adjustment')),'已记录餐次调整'));
   }
   async function providerRequest(path,body) {
-    const response=await fetch('/api/merchant/nutrition/'+path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});
-    const data=await response.json();if(!response.ok)throw new Error(data.message||'连接失败');return data;
+    let response;try{response=await fetch('/api/merchant/nutrition/'+path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});}catch{throw new Error('无法连接本机系统服务，请确认系统已启动后重试');}
+    let data;try{data=await response.json();}catch{throw new Error(`本机服务响应异常（HTTP ${response.status}），请刷新系统后重试`);}
+    if(!response.ok)throw new Error(data.message||`连接失败（HTTP ${response.status}）`);return data;
   }
-  async function connectBoohee() {
+  async function connectBoohee(onBack=null) {
     const status=await providerRequest('status');
-    modal('连接薄荷健康',`<div class="notice">${status.configured?'已保存连接密钥，可直接搜索；更新密钥会重新验证。':'尚未连接。使用你在薄荷开放平台创建的 API Key。'}</div><p><a href="https://ai.boohee.com/console/" target="_blank" rel="noopener">打开薄荷控制台，开通并创建 API Key ↗</a></p>${input('API Key','apiKey','','password','required autocomplete="off" placeholder="粘贴你的 API Key"')}<p class="muted">点击后会实际查询一次“米饭”来验证授权。密钥仅保存在本机服务端，不显示在菜品资料和标签中。</p>`,'验证并连接',async f=>{await providerRequest('connect',{apiKey:f.get('apiKey')});toast('已通过真实查询验证，薄荷健康已连接');});
+    modal('连接薄荷健康',`<div class="notice">${status.configured?'已有保存的 Key。可直接检测；更换时才需要重新粘贴。':'尚未保存有效连接。请粘贴薄荷开放平台的完整 API Key。'}</div>${status.configured?`<div class="actions">${btn('检测已保存的连接','check-boohee')}</div><div id="connectionResult" role="status"></div>`:''}<p><a href="https://ai.boohee.com/console/" target="_blank" rel="noopener">打开薄荷控制台 ↗</a></p>${input(status.configured?'更换 API Key':'API Key','apiKey','','password','required autocomplete="off" placeholder="完整 Key，不是带星号的脱敏值"')}<p class="muted">实际调用“食物搜索”验证。失败时显示薄荷返回原因及错误码；连接成功后仅在本机服务端保存密钥。</p>`,'验证并连接',async f=>{await providerRequest('connect',{apiKey:f.get('apiKey')});toast('已通过真实查询验证，薄荷健康已连接');if(onBack){onBack();return false;}},onBack);
   }
-  function foodSearchModal() {
-    foodResults=[];foodSearchPage=1;
-    modal('搜索并添加菜品',`<div class="search-line"><input id="foodQuery" placeholder="输入菜名，先查我的菜品库" maxlength="30" aria-label="搜索菜名">${btn('搜索','search-food','','primary')}</div><div id="foodResults"><p class="muted">本地没有结果时自动搜索薄荷健康。${btn('连接薄荷健康','connect-boohee','','text')}</p></div>`,null);
-    $('#foodQuery').value=query;if(query)searchFood();
+  function foodSearchModal(context=null,startQuery=query) {
+    foodResults=[];foodSearchPage=1;foodContext=context;++foodRequestId;
+    modal(context?'从薄荷添加到本餐':'搜索并添加菜品',`<div class="search-line"><input id="foodQuery" placeholder="输入菜名，先查我的菜品库" maxlength="30" aria-label="搜索菜名">${btn('搜索','search-food','','primary')}</div><div id="foodResults"><p class="muted">本地没有结果时自动搜索薄荷健康。${btn('连接薄荷健康','connect-boohee','','text')}</p></div><div class="pick-add"><span class="muted">也可以填写自己的成品热量。</span>${btn('手动新建','food-manual')}</div>`,null,null,context?()=>returnToPicker(context):null);
+    $('#foodQuery').value=startQuery;if(startQuery)searchFood();
     $('#foodQuery').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();searchFood();}});
   }
   async function searchFood(remote=false,next=false) {
     const q=$('#foodQuery')?.value.trim();if(!q)return toast('请输入菜名');
-    foodSearchPage=next?foodSearchPage+1:1;const region=$('#foodResults');region.innerHTML='<p class="muted">正在查询…</p>';
+    foodSearchPage=next?foodSearchPage+1:1;const region=$('#foodResults'),requestId=++foodRequestId;region.innerHTML='<p class="muted">正在查询…</p>';
     try {
-      const result=await providerRequest(`search?q=${encodeURIComponent(q)}&page=${foodSearchPage}${remote?'&remote=1':''}`);foodResults=result.foods;foodSource=result.source;foodHasMore=result.hasMore;
-      region.innerHTML=`<p class="muted">${result.source==='local'?'来自我的数据库 · 无需重复添加':'来自薄荷健康 · 确认后存入我的菜品库'}</p>${foodResults.map((f,index)=>`<div class="food-result"><div><b>${h(f.name)}</b><small>${result.source==='local'?(D.validNutrition(f)?`${f.nutrition.kcal100} kcal / 100g`:'热量待补全'):`${h(f.kcal100??'待查询')} kcal / ${f.isLiquid?'100ml（暂不支持称重）':'100g'}`}</small></div>${result.source==='local'?'<span class="tag">已在我的菜品</span>':btn('确认添加','import-food',`data-index="${index}" ${f.isLiquid?'disabled':''}`,'small')}</div>`).join('')||'<div class="empty">没有找到匹配菜品，可换一个名称或手动添加。</div>'}${result.source==='local'?btn('没找到想要的，继续查薄荷','search-remote','','text'):foodHasMore?btn('下一页','next-food','','text'):''}`;
-    }catch(e){region.innerHTML=`<div class="notice">${h(e.message)} ${btn('连接薄荷健康','connect-boohee','','text')}</div>`;}
+      const result=await providerRequest(`search?q=${encodeURIComponent(q)}&page=${foodSearchPage}${remote?'&remote=1':''}`);
+      if(requestId!==foodRequestId||!region.isConnected)return;
+      foodResults=result.foods;foodSource=result.source;foodHasMore=result.hasMore;
+      region.innerHTML=`<p class="muted">${result.source==='local'?'来自我的数据库 · 无需重复添加':'来自薄荷健康 · 确认后存入我的菜品库'}</p>${foodResults.map((f,index)=>`<div class="food-result"><div><b>${h(f.name)}</b><small>${result.source==='local'?(D.validNutrition(f)?`${f.nutrition.kcal100} kcal / 100g`:'热量待补全'):`${h(f.kcal100??'待查询')} kcal / ${f.isLiquid?'100ml（暂不支持称重）':'100g'}`}</small></div>${result.source==='local'?(foodContext?btn(D.validNutrition(f)?'选入本餐':'补全并选入','food-local',`data-id="${h(f.id)}"`,'small'):'<span class="tag">已在我的菜品</span>'):btn('确认添加','import-food',`data-index="${index}" ${f.isLiquid?'disabled':''}`,'small')}</div>`).join('')||'<div class="empty">没有找到匹配菜品，可换一个名称或手动添加。</div>'}${result.source==='local'?btn('没找到想要的，继续查薄荷','search-remote','','text'):foodHasMore?btn('下一页','next-food','','text'):''}`;
+    }catch(e){if(requestId===foodRequestId&&region.isConnected)region.innerHTML=`<div class="notice">${h(e.message)} ${btn('连接薄荷健康','connect-boohee','','text')}</div>`;}
   }
   function importFoodModal(index) {
     const f=foodResults[index];if(!f||foodSource!=='boohee')return;
-    modal(`确认添加：${h(f.name)}`,`<p>薄荷编码：${h(f.code)} · 预览热量 ${h(f.kcal100??'待核对')} kcal / 100g</p><div class="form-grid"><label class="field">用于菜单的分类<select name="category">${options(['主食','荤','素','海鲜'].map(c=>[c,c]),'荤')}</select></label><label class="field">称重口径<select name="basis"><option value="cooked">烹调后的成品熟重</option><option value="ready">即食 / 可食重量</option></select></label></div>${input('实际使用的食材（选填，用于忌口检查）','ingredients','','text','placeholder="没有填写时，优先采用薄荷菜肴配料；缺失会提示核对"')}<label class="flex"><input type="checkbox" name="confirmed" required>我已核对名称：这个条目对应上述成品，不是待烹调生食材。</label><p class="muted">保存时会再次读取薄荷详情，核实热量来源。食材和成品不能直接混用。</p>`,'添加到我的菜品',async form=>{
+    const context=foodContext,searchQuery=$('#foodQuery').value;
+    modal(`确认添加：${h(f.name)}`,`<p>薄荷编码：${h(f.code)} · 预览热量 ${h(f.kcal100??'待核对')} kcal / 100g</p><div class="form-grid"><label class="field">用于菜单的分类<select name="category">${options(['主食','荤','素','海鲜'].map(c=>[c,c]),context?.category||'荤')}</select></label><label class="field">称重口径<select name="basis"><option value="cooked">烹调后的成品熟重</option><option value="ready">即食 / 可食重量</option></select></label></div>${input('实际使用的食材（选填，用于忌口检查）','ingredients','','text','placeholder="没有填写时，优先采用薄荷菜肴配料；缺失会提示核对"')}<label class="flex"><input type="checkbox" name="confirmed" required>我已核对名称：这个条目对应上述成品，不是待烹调生食材。</label><p class="muted">保存时重新读取薄荷详情。热量缺失或重量口径不适用的条目不能添加。</p>`,context?'保存并选入本餐':'添加到我的菜品',async form=>{
       const r=await providerRequest('import',{code:f.code,category:form.get('category'),basis:form.get('basis'),ingredients:list(form.get('ingredients')),confirmed:form.get('confirmed')==='on',revision});
       state=D.hydrate(r.state);revision=r.revision;render();toast(r.existing?'已在我的菜品中，无需重复添加':'已从薄荷健康添加并保存');
-    });
+      if(context){returnToPicker(context,r.dish?.id||state.dishes.find(d=>d.nutrition.providerCode===f.code)?.id);return false;}
+    },()=>foodSearchModal(context,searchQuery));
   }
 
   function boxModal(id) {
     const box=state.boxes.find(b=>b.id===id);if(!box||box.status==='completed')return;
-    modal(`调整 ${h(customer(box.customerId)?.name)} 的这份餐`,`${portionSummary(box)}<div class="hint">保存后改为手动克重，后续资料变化不会覆盖本盒。${btn('恢复自动配餐','restore-auto',`data-id="${h(id)}"`,'text small')}</div>${!box.items.length?'<div class="notice">请先在今日出餐中选择菜单。</div>':''}${box.items.map((i,index)=>`<div class="form-grid"><label class="field">菜品 ${index+1}<select name="dish${index}">${options(state.dishes.map(d=>[d.id,d.name]),i.dishId)}</select></label>${input('本次分量 · g',`grams${index}`,i.grams,'number','required min="1" max="10000"')}</div>`).join('')}<div class="muted">只修改这一盒，不影响其他客户或下一次出餐。</div>`,'保存本餐调整',async f=>save(s=>{
+    modal(`调整 ${h(customer(box.customerId)?.name)} 的这份餐`,`${portionSummary(box)}<div class="hint">保存后改为手动克重，后续资料变化不会覆盖本盒。${btn('恢复自动配餐','restore-auto',`data-id="${h(id)}"`,'text small')}</div>${!box.items.length?'<div class="notice">请先在今日出餐中选择菜单。</div>':''}${box.items.map((i,index)=>`<div class="form-grid"><label class="field">菜品 ${index+1}<select name="dish${index}">${options(state.dishes.filter(D.validNutrition).map(d=>[d.id,d.name]),i.dishId)}</select></label>${input('本次分量 · g',`grams${index}`,i.grams,'number','required min="1" max="10000"')}</div>`).join('')}<div class="muted">只修改这一盒，不影响其他客户或下一次出餐。</div>`,'保存本餐调整',async f=>save(s=>{
       const b=s.boxes.find(b=>b.id===id);D.setBoxItems(s,b,b.items.map((i,index)=>({dishId:f.get(`dish${index}`),grams:Number(f.get(`grams${index}`))})));
     },'这份餐已调整，标签同步更新'));
   }
@@ -222,16 +245,14 @@
     const os=state.orders.filter(o=>o.customerId===id);
     modal(`${h(customer(id)?.name)} · 订餐账本`,os.slice().reverse().map(o=>{const rows=state.boxes.filter(b=>b.orderId===o.id).sort((a,b)=>a.date.localeCompare(b.date)||a.meal.localeCompare(b.meal)),adjustments=(state.creditAdjustments||[]).filter(a=>a.orderId===o.id);return `<section class="ledger-card"><div class="section-head"><div><h3>${h(D.orderLabel(state,o))}</h3><div class="customer-note">购买：${h(localTime(o.createdAt))}</div><small>${h(o.startDate)} 至 ${h(o.endDate)} · ${h(o.paidStatus||'未记录')}${o.price!=null?' · ¥'+h(o.price):''}</small></div>${btn('调整剩余次数','adjust-credit',`data-id="${h(o.id)}"`,'small')}</div><div class="body"><div class="balance-line"><span>购买 <b>${o.credits}</b></span><span>已用 <b>${rows.filter(b=>b.status==='completed'||b.status==='cancelled'&&b.chargeCancelled).length}</b></span><span>补扣 <b>${adjustments.reduce((n,a)=>n+a.delta,0)}</b></span><span>剩余 <b>${D.remaining(state,o)}</b></span><span>已安排 <b>${D.reserved(state,o)}</b></span></div>${o.notes?`<p class="muted">${h(o.notes)}</p>`:''}<div class="ledger-rows">${rows.map(b=>`<div class="ledger-row"><div><b>${b.date} · ${mealName(b.meal)}</b><div class="customer-note">${b.status==='completed'?'已出餐 · 扣 1 次':b.status==='cancelled'?(b.chargeCancelled?'已取消 · 扣 1 次':'已取消 · 不扣次'):b.status==='paused'?'暂停 · 不扣次':'已安排 · 待出餐，不扣次'}</div>${(b.events||[]).map(e=>`<div class="customer-note">${h(localTime(e.at))} ${e.type==='cancel'?'取消'+(e.charge?'（仍扣次）':'（不扣次）'):e.type==='complete'?'出餐扣次':'恢复用餐'}：${h(e.reason)}${e.items?.length?`<details><summary>当次菜品</summary>${e.items.map(i=>`${h((i.snapshot||D.dishOf(state,i.dishId))?.name)} ${i.grams}g`).join('、')}</details>`:''}</div>`).join('')}<details><summary>菜品与克重</summary>${b.items.map(i=>`${h((i.snapshot||D.dishOf(state,i.dishId))?.name)} ${i.grams}g`).join('、')}</details></div>${b.status!=='cancelled'?btn('取消 / 退餐','cancel-box',`data-id="${h(b.id)}"`,'text small'):''}</div>`).join('')||'<p class="muted">本期尚无用餐记录</p>'}${adjustments.map(a=>`<div class="ledger-row"><span>${h(localTime(a.at))} 手动${a.delta>0?'补':'扣'} ${Math.abs(a.delta)} 次<br><small>${h(a.reason)}</small></span></div>`).join('')}</div></div></section>`;}).join('')||'<div class="empty">已登记，尚未订餐。</div>',null);
   }
-  async function printLabels(reprintOnly=false,allowIncomplete=false) {
+  async function printLabels(reprintOnly=false) {
     if(!D.workflow(state,date,meal).rosterReady)return toast('请先确认菜单和用餐名单');
     const rows=boxes().filter(b=>!['paused','cancelled'].includes(b.status)&&(!selected.size||selected.has(b.id))&&(!reprintOnly||(b.exportedVersion&&b.exportedVersion!==b.version)));
     if(!rows.length)return toast('没有可打印的餐盒');
     if(rows.some(b=>!b.items.length))return toast('请先选择今天的菜单');
     if(rows.some(b=>D.checks(state,b).blocked))return toast('请先处理所选餐盒的忌口，或补全菜品食材后再打印');
     const missing=rows.filter(b=>!D.nutrition(state,b.items).complete);
-    if(missing.length&&!allowIncomplete){
-      modal('还有热量未补齐',`<p>${missing.length} 份餐盒的热量信息未完整。可先关闭，点击菜名补充数据。</p><p class="muted">若先打印，缺失热量的餐盒只标菜品、克重、昵称和地址，不显示完整总热量。</p>`,'仍打印，标明热量待补充',async()=>{await printLabels(reprintOnly,true);return false;});return;
-    }
+    if(missing.length)return toast('请先补齐每道菜的成品热量，再打印标签');
     const {labelWidth:w,labelHeight:height}=state.settings;
     $('#printArea').innerHTML=`<style>@page{size:${w}mm ${height}mm;margin:0}</style>${rows.map(b=>`<article class="print-label" style="--label-width:${w}mm;--label-height:${height}mm">${labelHtml(b)}</article>`).join('')}`;
     const area=$('#printArea');area.style.cssText='display:block;position:absolute;left:-20000px;top:0';
@@ -248,10 +269,15 @@
     const {action,id}=b.dataset;
     try {
       if(action==='nav'){page=b.dataset.page;query='';render();}
-      else if(action==='close')$('#dialog').close();
+      else if(action==='close')closeModal();
       else if(action==='meal'){meal=b.dataset.meal;selected.clear();D.sync(state,date,meal);step=D.workflow(state,date,meal).stage;render();}
       else if(action==='today'||action==='tomorrow'){viewMode=action==='today'?'packing':'planning';date=action==='today'?D.today():D.nextDate(D.today());selected.clear();D.sync(state,date,meal);step=D.workflow(state,date,meal).stage;render();}
-      else if(action==='connect-boohee')await connectBoohee();
+      else if(action==='connect-boohee'){const q=$('#foodQuery')?.value,context=foodContext;await connectBoohee(q!==undefined?()=>foodSearchModal(context,q):null);}
+      else if(action==='check-boohee'){b.disabled=true;const region=$('#connectionResult');region.textContent='正在检测…';try{const r=await providerRequest('check',{});region.textContent=r.message;}catch(e){region.textContent=e.message;}finally{b.disabled=false;}}
+      else if(action==='pick-online'){const draft=capturePicker();foodSearchModal(draft,draft.query);}
+      else if(action==='pick-create'||action==='pick-edit'){const draft=capturePicker();dishModal(id,x=>returnToPicker(draft,x),{name:draft.query,category:draft.category},()=>returnToPicker(draft));}
+      else if(action==='food-local'){const context=foodContext,q=$('#foodQuery').value;if(D.validNutrition(D.dishOf(state,id)))returnToPicker(context,id);else dishModal(id,x=>returnToPicker(context,x),{},()=>foodSearchModal(context,q));}
+      else if(action==='food-manual'){const context=foodContext,q=$('#foodQuery').value;dishModal(null,context?x=>returnToPicker(context,x):null,{name:q,category:context?.category},()=>foodSearchModal(context,q));}
       else if(action==='search-food')await searchFood();
       else if(action==='search-remote')await searchFood(true);
       else if(action==='next-food')await searchFood(true,true);

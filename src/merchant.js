@@ -24,12 +24,16 @@ function createMerchantRouter(repository, options = {}) {
     })().catch(error => { ready = null; throw error; });
     return ready;
   }
-  const providerError=(res,e)=>res.status(e.status||502).json({message:e.message});
+  const providerError=(res,e)=>res.status(e.status||502).json({message:e.message,kind:e.kind,httpStatus:e.httpStatus,providerCode:e.providerCode});
   router.get('/nutrition/status',async(req,res)=>{try{res.json(await boohee.status());}catch(e){providerError(res,e);}});
   router.post('/nutrition/connect',async(req,res)=>{
     const address=req.socket.remoteAddress;
     if(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(address)||req.get('origin')&&req.get('origin')!==`http://${req.get('host')}`)return res.status(403).json({message:'请在本机系统页面配置连接'});
     try{res.json(await boohee.connect(req.body.apiKey));}catch(e){providerError(res,e);}
+  });
+  router.post('/nutrition/check',async(req,res)=>{
+    if(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress)||req.get('origin')&&req.get('origin')!==`http://${req.get('host')}`)return res.status(403).json({message:'请在本机系统页面检测连接'});
+    try{res.json(await boohee.check());}catch(e){providerError(res,e);}
   });
   router.get('/nutrition/search',async(req,res)=>{
     try {
@@ -68,6 +72,7 @@ function createMerchantRouter(repository, options = {}) {
       try { domain.validate(req.body.state); domain.refreshPending(req.body.state); domain.validate(req.body.state); } catch (error) { return res.status(422).json({ message: error.message }); }
       if (!Number.isInteger(req.body.revision)) return res.status(422).json({ message: '缺少数据版本，请刷新后重试' });
       const previous=await readRecord();
+      try{domain.validateNutritionChanges(req.body.state,previous.state);}catch(error){return res.status(422).json({message:error.message});}
       if(req.body.state.dishes.some(d=>d.nutrition.source==='boohee'&&JSON.stringify(d.nutrition)!==JSON.stringify(previous.state.dishes.find(x=>x.id===d.id)?.nutrition)))return res.status(422).json({message:'薄荷热量必须通过真实查询添加，不可伪造或改写'});
       if(JSON.stringify((req.body.state.creditAdjustments||[]).slice(0,(previous.state.creditAdjustments||[]).length))!==JSON.stringify(previous.state.creditAdjustments||[]))return res.status(422).json({message:'原有餐次调整流水不能删除或改写'});
       for(const old of previous.state.orders){const current=req.body.state.orders.find(o=>o.id===old.id);if(!current||current.credits!==old.credits||current.customerId!==old.customerId)return res.status(422).json({message:'原购买记录不能删除或改写，请通过餐次调整流水补扣'});}

@@ -154,7 +154,28 @@
   }
   function validNutrition(dish) {
     const n = dish?.nutrition;
-    return !!n && ['manual', 'boohee'].includes(n.source) && n.kcal100 !== null && n.kcal100 !== '' && Number.isFinite(Number(n.kcal100)) && Number(n.kcal100) >= 0 && ['cooked', 'ready'].includes(n.basis);
+    return !!n && ['manual', 'boohee'].includes(n.source) && ['number','string'].includes(typeof n.kcal100) && String(n.kcal100).trim() !== '' && Number.isFinite(Number(n.kcal100)) && Number(n.kcal100) >= 0 && ['cooked', 'ready'].includes(n.basis);
+  }
+  function requireNutrition(state,items,snapshots=false) {
+    const missing=items.filter(i=>!validNutrition(snapshots&&i.snapshot||dishOf(state,i.dishId)));
+    if(missing.length)throw new Error(`请先补全成品热量和重量口径：${missing.map(i=>dishOf(state,i.dishId)?.name||'未知菜品').join('、')}`);
+  }
+  // Preserve imported history, but never create or change a menu using unverified calories.
+  function validateNutritionChanges(state,previous) {
+    const changed=(a,b)=>JSON.stringify(a)!==JSON.stringify(b);
+    for(const d of state.dishes) {
+      const old=previous.dishes.find(x=>x.id===d.id);
+      if((!old||changed(d.nutrition,old.nutrition))&&!validNutrition(d))throw new Error('新建或修改菜品必须填写完整的成品热量和重量口径');
+    }
+    for(const [key,items] of Object.entries(state.menus))if(changed(items,previous.menus[key]))requireNutrition(state,items);
+    for(const [key,plan] of Object.entries(state.plans||{})) {
+      const old=previous.plans?.[key];
+      if(changed(plan.backups,old?.backups)||plan.menuConfirmed&&changed(plan.menuConfirmed,old?.menuConfirmed))requireNutrition(state,[...(state.menus[key]||[]),...plan.backups]);
+    }
+    for(const box of state.boxes) {
+      const old=previous.boxes.find(b=>b.id===box.id);
+      if(!['cancelled','paused'].includes(box.status)&&(!old||changed(box.items,old.items)||box.status!==old.status))requireNutrition(state,box.items,old?.status==='completed'&&box.status==='completed');
+    }
   }
   function nutrition(state, items) {
     let kcal = 0; const sources = new Set(); let complete = items.length > 0;
@@ -189,15 +210,16 @@
   }
   function workflow(state,date,meal) {
     const plan=planOf(state,date,meal), main=state.menus[keyOf(date,meal)]||[], live=state.boxes.filter(b=>b.date===date&&b.meal===meal&&!['paused','cancelled'].includes(b.status));
-    const menuValid=main.length>0&&plan.backups.length===2&&plan.backups.filter(i=>['荤','海鲜'].includes(dishOf(state,i.dishId)?.category)).length===1&&plan.backups.filter(i=>dishOf(state,i.dishId)?.category==='素').length===1&&!plan.backups.some(i=>main.some(m=>m.dishId===i.dishId));
+    const menuValid=main.length>0&&plan.backups.length===2&&plan.backups.filter(i=>['荤','海鲜'].includes(dishOf(state,i.dishId)?.category)).length===1&&plan.backups.filter(i=>dishOf(state,i.dishId)?.category==='素').length===1&&!plan.backups.some(i=>main.some(m=>m.dishId===i.dishId))&&[...main,...plan.backups].every(i=>validNutrition(dishOf(state,i.dishId)));
     const menuReady=menuValid&&!menuRepeats(state,date,meal).length&&plan.menuConfirmed===menuSignature(state,date,meal);
     const conflicts=live.filter(b=>checks(state,b).blocked);
     const missingNutrition=live.filter(b=>!nutrition(state,b.items).complete);
     const missingAddress=live.filter(b=>{const c=b.customerSnapshot||state.customers.find(c=>c.id===b.customerId);return c?.fulfillment!=='pickup'&&!String(c?.address||'').trim();});
-    const rosterReady=menuReady&&live.length>0&&!conflicts.length&&!missingAddress.length&&plan.rosterConfirmed===rosterSignature(state,date,meal);
+    const rosterReady=menuReady&&live.length>0&&!conflicts.length&&!missingAddress.length&&!missingNutrition.length&&plan.rosterConfirmed===rosterSignature(state,date,meal);
     return {menuValid,menuReady,rosterReady,live,conflicts,missingNutrition,missingAddress,stage:rosterReady?3:menuReady?2:1};
   }
   function confirmMenu(state,date,meal) {
+    requireNutrition(state,[...(state.menus[keyOf(date,meal)]||[]),...planOf(state,date,meal).backups]);
     if(!workflow(state,date,meal).menuValid)throw new Error('请选择主菜单，并准备两道不重复的备用菜：一荤一素');
     if(menuRepeats(state,date,meal).length)throw new Error('与同日另一餐或相邻日期有重复菜，请更换后确认');
     const plan=planOf(state,date,meal);plan.menuConfirmed=menuSignature(state,date,meal);sync(state,date,meal);
@@ -209,6 +231,7 @@
     if(!w.live.length)throw new Error('请先添加本餐用餐人');
     if(w.conflicts.length)throw new Error('请先处理忌口冲突或补全相关菜品食材');
     if(w.missingAddress.length)throw new Error('请补全配送地址，或设置为自提');
+    if(w.missingNutrition.length)throw new Error('请补全每道菜的成品热量，再生成标签');
     planOf(state,date,meal).rosterConfirmed=rosterSignature(state,date,meal);
   }
   function captureOverrides(state,box) {
@@ -218,11 +241,13 @@
     if(box.custom)base.forEach((i,index)=>{const actual=box.items[index];if(actual&&(actual.dishId!==i.dishId||actual.grams!==i.grams))box.overrides[i.dishId]=copy(actual);});
   }
   function setMenu(state,date,meal,items) {
+    requireNutrition(state,items);
     state.boxes.filter(b=>b.date===date&&b.meal===meal&&b.status!=='completed').forEach(b=>captureOverrides(state,b));
     state.menus[keyOf(date,meal)]=copy(items);sync(state,date,meal);
   }
   function setBoxItems(state,box,items) {
     if(box.status==='completed')throw new Error('已完成餐盒不能修改');
+    requireNutrition(state,items);
     const base=state.menus[keyOf(box.date,box.meal)]||[];
     box.overrides={};base.forEach((i,index)=>{const actual=items[index];if(actual&&(actual.dishId!==i.dishId||actual.grams!==i.grams))box.overrides[i.dishId]=copy(actual);});
     box.items=copy(items);box.custom=true;box.portionMode='manual';recalculateBox(state,box);
@@ -232,6 +257,7 @@
     if(!box||box.status==='completed'||!box.items[index])throw new Error('这份餐已完成或菜品已变化，请刷新后重试');
     const candidate=planOf(state,box.date,box.meal).backups.find(i=>i.dishId===dishId);
     if(!candidate)throw new Error('请选择本餐备用菜');
+    requireNutrition(state,[candidate]);
     if(box.items.some((i,n)=>n!==index&&i.dishId===dishId))throw new Error('这份餐已经包含这道备用菜');
     if(itemCheck(state,box,candidate).blocked)throw new Error('这道备用菜仍有忌口冲突或食材未完整');
     if(box.portionMode==='manual'||(!box.portionMode&&box.custom)) {
@@ -265,6 +291,7 @@
     const counts = new Map();
     for (const box of boxes) {
       if (!box.items.length) throw new Error('请先设置菜单');
+      requireNutrition(state,box.items);
       if (checks(state, box).blocked) throw new Error('请先处理忌口或核对菜品食材');
       const order = state.orders.find(o => o.id === box.orderId);
       if (!order) throw new Error('该餐盒缺少订餐记录');
@@ -311,5 +338,5 @@
     for (const items of lists) for (const i of items) if (!dishOf(state, i.dishId) || !Number.isFinite(Number(i.grams)) || Number(i.grams) <= 0 || Number(i.grams) > 10000) throw new Error('请填写有效的菜品克重（1–10000 g）');
     return state;
   }
-  return { reserved, usableOrders, addDiner, cancelBox, resumeBox, adjustBalance, orderKind, orderLabel, menuRepeats, purgeLegacyDishes, copy, today, nextDate, initial, hydrate, dishOf, remaining, validNutrition, nutrition, checks, itemCheck, sync, touch, finish, validate, planOf, workflow, confirmMenu, confirmRoster, setMenu, setBoxItems, replaceWithBackup, mealTarget, allocate, recalculateBox, refreshPending, restoreAutomatic };
+  return { requireNutrition, validateNutritionChanges, reserved, usableOrders, addDiner, cancelBox, resumeBox, adjustBalance, orderKind, orderLabel, menuRepeats, purgeLegacyDishes, copy, today, nextDate, initial, hydrate, dishOf, remaining, validNutrition, nutrition, checks, itemCheck, sync, touch, finish, validate, planOf, workflow, confirmMenu, confirmRoster, setMenu, setBoxItems, replaceWithBackup, mealTarget, allocate, recalculateBox, refreshPending, restoreAutomatic };
 });
