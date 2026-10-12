@@ -15,7 +15,7 @@ test('food search is local first; confirmed provider imports persist and dedupli
     assert.equal((await fetch(base+'/nutrition/search?q=米饭').then(r=>r.json())).source,'boohee');assert.equal(searches,1);
     const body={code:'rice',category:'主食',basis:'cooked',confirmed:true,revision:1};
     assert.equal((await post('/nutrition/import',{...body,confirmed:false})).status,422);
-    const saved=await post('/nutrition/import',body).then(r=>r.json());assert.equal(saved.state.dishes[0].nutrition.source,'boohee');assert.equal(saved.revision,2);
+    const saved=await post('/nutrition/import',body).then(r=>r.json());assert.equal(saved.state.dishes[0].nutrition.source,'boohee');assert.equal(saved.revision,2);assert.equal(saved.dish.ingredientsSource,'boohee');
     assert.equal((await fetch(base+'/nutrition/search?q=米饭').then(r=>r.json())).source,'local');assert.equal(searches,1);
     assert.equal((await post('/nutrition/import',{...body,revision:2}).then(r=>r.json())).existing,true);assert.equal(details,1);
     saved.state.menus[D.today()+':lunch']=[{dishId:saved.dish.id,grams:180}];
@@ -24,6 +24,8 @@ test('food search is local first; confirmed provider imports persist and dedupli
     assert.equal((await post('',get,'PUT')).status,200);
     for(const [field,value] of [['kcal100',5],['providerCode','forged'],['basis','ready'],['reference','rewritten']]){const tampered=await fetch(base).then(r=>r.json());tampered.state.dishes[0].nutrition[field]=value;assert.equal((await post('',tampered,'PUT')).status,422);}
     const edited=await fetch(base).then(r=>r.json());edited.state.dishes[0].category='素';edited.state.dishes[0].defaultGrams=120;assert.equal((await post('',edited,'PUT')).status,200);
+    const reviewed=await fetch(base).then(r=>r.json());D.setDietaryReview(reviewed.state,'boohee:rice','花生',false);assert.equal((await post('',reviewed,'PUT')).status,200);
+    const recalled=await fetch(base).then(r=>r.json());assert.equal(D.activeDietaryReviews(recalled.state.dishes[0])[0].contains,false);assert.equal(recalled.state.dishes[0].nutrition.source,'boohee');assert.equal(recalled.state.dishes[0].nutrition.kcal100,116);
     assert.equal((await post('/nutrition/import',body)).status,409);
     assert.equal((await fetch(base+'/nutrition/search?q=米饭&remote=1').then(r=>r.json())).source,'boohee');assert.equal(searches,2);
     const ledger=await fetch(base).then(r=>r.json());ledger.state.customers.push({id:'c',name:'账本测试'});

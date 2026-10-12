@@ -53,7 +53,7 @@ function createMerchantRouter(repository, options = {}) {
       const existing=current.state.dishes.find(d=>d.nutrition?.providerCode===code);
       if(existing)return res.json({...current,dish:existing,existing:true});
       const detail=await boohee.detail(code),id=`boohee:${detail.code}`;
-      const dish={id,name:detail.name,category,defaultGrams:150,ingredients:Array.isArray(ingredients)&&ingredients.length?ingredients:detail.ingredients,nutrition:{source:'boohee',providerCode:detail.code,kcal100:detail.kcal100,basis,reference:`薄荷健康：${detail.name} (${detail.code})`,updatedAt:new Date().toISOString()}};
+      const dish={id,name:detail.name,category,defaultGrams:150,ingredientsSource:Array.isArray(ingredients)&&ingredients.length?'merchant':'boohee',ingredients:Array.isArray(ingredients)&&ingredients.length?ingredients:detail.ingredients,nutrition:{source:'boohee',providerCode:detail.code,kcal100:detail.kcal100,basis,reference:`薄荷健康：${detail.name} (${detail.code})`,updatedAt:new Date().toISOString()}};
       current.state.dishes.push(dish);domain.validate(current.state);
       const [result]=await poolFor().query('UPDATE merchant_workspace SET payload=?,revision=revision+1 WHERE id=1 AND revision=?',[JSON.stringify(current.state),revision]);
       if(!result.affectedRows)return res.status(409).json({message:'其他窗口已更新，请刷新后重试'});

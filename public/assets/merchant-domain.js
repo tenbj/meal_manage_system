@@ -195,36 +195,76 @@
     }
     return { complete, kcal: complete ? Math.round(kcal) : null, source: sources.size > 1 ? '薄荷健康数据＋商家录入' : sources.has('boohee') ? '薄荷健康数据' : '商家录入' };
   }
-  function checks(state, box) {
-    const customer = box.customerSnapshot || state.customers.find(c => c.id === box.customerId);
-    const terms = [...(customer?.restrictions || []), ...(customer?.allergies || [])].filter(Boolean);
-    const conflicts = [];
-    for (const item of box.items) {
-      const dish = item.snapshot || dishOf(state, item.dishId);
-      conflicts.push(...dishConflicts(dish, terms));
-    }
-    const unknown = terms.length > 0 && box.items.some(i => !((i.snapshot || dishOf(state, i.dishId))?.ingredients || []).length);
-    return { conflicts, unknown, blocked: conflicts.length > 0 || unknown };
+  function dietaryTerms(values) {
+    const empty=new Set(['无','没有','暂无','无忌口','没有忌口','不忌口','无过敏','无过敏史','无特殊忌口','无特殊要求','不限','none','no']);
+    return [...new Set((Array.isArray(values)?values:[]).map(v=>String(v).trim().toLowerCase()).filter(v=>v&&!empty.has(v)))];
   }
-  function dishConflicts(dish, terms) {
-    const haystack = `${dish?.name || ''} ${dish?.category || ''} ${(dish?.ingredients || []).join(' ')}`.toLowerCase();
-    const groups = { '海鲜':['鱼','虾','蟹','贝','鱿鱼','海鲜'], '坚果':['花生','核桃','杏仁','腰果','坚果'], '奶制品':['牛奶','奶酪','奶油','酸奶'], '豆制品':['大豆','黄豆','豆腐','豆浆','豆皮'] };
-    return terms.filter(term=>[term,...(groups[term]||[])].some(t=>haystack.includes(t.toLowerCase()))).map(term=>`${dish?.name}：${term}`);
+  function ingredientSource(dish) {
+    if(dish?.ingredientsSource==='merchant')return 'merchant';
+    if(dish?.ingredientsSource==='unknown')return 'unknown';
+    if(dish?.ingredientsSource==='boohee'||dish?.nutrition?.source==='boohee')return 'boohee';
+    return (dish?.ingredients||[]).length?'merchant':'unknown';
+  }
+  function ingredientSignature(dish) {
+    return stableJson({name:dish?.name||'',category:dish?.category||'',ingredients:dish?.ingredients||[],source:ingredientSource(dish),version:dish?.ingredientsVersion||0});
+  }
+  function ingredientMatches(text,term) {
+    const groups={'海鲜':['鱼','虾','蟹','贝','鱿鱼','海鲜'],'坚果':['花生','核桃','杏仁','腰果','坚果'],'奶制品':['牛奶','奶酪','奶油','酸奶'],'豆制品':['大豆','黄豆','豆腐','豆浆','豆皮'],'牛肉':['牛肉','肥牛','牛腩','牛柳','牛排'],'番茄':['番茄','西红柿'],'西红柿':['番茄','西红柿'],'大米':['大米','米饭'],'鸡蛋':['鸡蛋','炒蛋','蒸蛋','煎蛋','蛋花']};
+    return [term,...(groups[term]||[])].some(t=>String(text||'').toLowerCase().includes(t));
+  }
+  function dietaryEvidence(dish,term) {
+    const ingredients=(dish?.ingredients||[]).filter(x=>ingredientMatches(x,term));
+    const name=String(dish?.name||'').replace(/鱼香/g,'');
+    const nameMatch=ingredientMatches(name,term)||(term==='海鲜'&&dish?.category==='海鲜');
+    return {ingredients,nameMatch,actual:ingredientSource(dish)==='merchant'&&ingredients.length>0};
+  }
+  function activeDietaryReviews(dish) {
+    const signature=ingredientSignature(dish),reviews=new Map();
+    for(const review of dish?.dietaryReviews||[])if(review.signature===signature)reviews.set(review.term,review);
+    return [...reviews.values()];
+  }
+  function setDietaryReview(state,dishId,term,contains) {
+    const dish=state.dishes.find(d=>d.id===dishId),terms=dietaryTerms([term]);
+    if(!dish||terms.length!==1||typeof contains!=='boolean')throw new Error('请核对菜品和忌口项');
+    term=terms[0];const evidence=dietaryEvidence(dish,term);
+    if(!contains&&(evidence.actual||evidence.nameMatch))throw new Error('菜名或本店已填配料包含这一项，请先修正菜品资料，不能直接确认不含');
+    dish.dietaryReviews ||= [];dish.dietaryReviews.push({term,contains,signature:ingredientSignature(dish),at:new Date().toISOString()});
+  }
+  function checks(state, box) {
+    const customer=box.customerSnapshot||state.customers.find(c=>c.id===box.customerId);
+    const allergies=dietaryTerms(customer?.allergies),terms=dietaryTerms([...(customer?.restrictions||[]),...allergies]);
+    const issues=[];
+    for(const item of box.items) {
+      const dish=item.snapshot||dishOf(state,item.dishId),reviews=activeDietaryReviews(dish);
+      for(const term of terms) {
+        const evidence=dietaryEvidence(dish,term),review=reviews.find(r=>r.term===term);
+        const base={dishId:item.dishId,dishName:dish?.name||'未知菜品',term,allergy:allergies.includes(term)};
+        if(evidence.actual||evidence.nameMatch||review?.contains===true) {
+          const reason=evidence.actual?`本店配料：${evidence.ingredients.join('、')}`:evidence.nameMatch?'菜名 / 分类匹配':'商家已确认本店含有';
+          issues.push({...base,kind:'conflict',reason});continue;
+        }
+        if(review?.contains===false)continue;
+        if(evidence.ingredients.length)issues.push({...base,kind:'review',reason:`${ingredientSource(dish)==='boohee'?'薄荷参考配方':'已有参考配料'}含 ${evidence.ingredients.join('、')}，本店做法待确认`});
+        else if(allergies.includes(term))issues.push({...base,kind:'review',reason:'现有记录未匹配，需确认本店是否使用该过敏项（含用油 / 调料）'});
+      }
+    }
+    const conflicts=issues.filter(i=>i.kind==='conflict').map(i=>`${i.dishName}：${i.term}（${i.reason}）`),reviews=issues.filter(i=>i.kind==='review');
+    return {issues,conflicts,reviews,unknown:reviews.length>0,blocked:issues.length>0,hasTerms:terms.length>0};
   }
   function itemCheck(state, box, item) { return checks(state,{...box,items:[item]}); }
   function menuSignature(state,date,meal) { return stableJson({main:state.menus[keyOf(date,meal)]||[],backups:planOf(state,date,meal).backups}); }
   function rosterSignature(state,date,meal) {
-    return stableJson(state.boxes.filter(b=>b.date===date&&b.meal===meal&&!['paused','cancelled'].includes(b.status)).map(b=>({id:b.id,items:b.items.map(i=>({dishId:i.dishId,grams:i.grams,nutrition:(i.snapshot||dishOf(state,i.dishId))?.nutrition})),allocation:b.allocation,customer:b.customerSnapshot||state.customers.find(c=>c.id===b.customerId)})));
+    return stableJson(state.boxes.filter(b=>b.date===date&&b.meal===meal&&!['paused','cancelled'].includes(b.status)).map(b=>({id:b.id,items:b.items.map(i=>({dishId:i.dishId,grams:i.grams,nutrition:(i.snapshot||dishOf(state,i.dishId))?.nutrition,dietaryBasis:ingredientSignature(i.snapshot||dishOf(state,i.dishId)),dietaryReviews:activeDietaryReviews(i.snapshot||dishOf(state,i.dishId))})),allocation:b.allocation,customer:b.customerSnapshot||state.customers.find(c=>c.id===b.customerId)})));
   }
   function workflow(state,date,meal) {
     const plan=planOf(state,date,meal), main=state.menus[keyOf(date,meal)]||[], live=state.boxes.filter(b=>b.date===date&&b.meal===meal&&!['paused','cancelled'].includes(b.status));
     const menuValid=main.length>0&&new Set(plan.backups.map(i=>i.dishId)).size===plan.backups.length&&!plan.backups.some(i=>main.some(m=>m.dishId===i.dishId))&&[...main,...plan.backups].every(i=>validNutrition(dishOf(state,i.dishId)));
     const menuReady=menuValid&&!menuRepeats(state,date,meal).length&&sameSignature(plan.menuConfirmed,menuSignature(state,date,meal));
-    const conflicts=live.filter(b=>checks(state,b).blocked);
+    const conflicts=live.filter(b=>b.status!=='completed'&&checks(state,b).conflicts.length),reviews=live.filter(b=>b.status!=='completed'&&checks(state,b).unknown);
     const missingNutrition=live.filter(b=>!nutrition(state,b.items).complete);
     const missingAddress=live.filter(b=>{const c=b.customerSnapshot||state.customers.find(c=>c.id===b.customerId);return c?.fulfillment!=='pickup'&&!String(c?.address||'').trim();});
-    const rosterReady=menuReady&&live.length>0&&!conflicts.length&&!missingAddress.length&&!missingNutrition.length&&sameSignature(plan.rosterConfirmed,rosterSignature(state,date,meal));
-    return {menuValid,menuReady,rosterReady,live,conflicts,missingNutrition,missingAddress,stage:rosterReady?3:menuReady?2:1};
+    const rosterReady=menuReady&&live.length>0&&!conflicts.length&&!reviews.length&&!missingAddress.length&&!missingNutrition.length&&sameSignature(plan.rosterConfirmed,rosterSignature(state,date,meal));
+    return {menuValid,menuReady,rosterReady,live,conflicts,reviews,missingNutrition,missingAddress,stage:rosterReady?3:menuReady?2:1};
   }
   function confirmMenu(state,date,meal) {
     requireNutrition(state,[...(state.menus[keyOf(date,meal)]||[]),...planOf(state,date,meal).backups]);
@@ -237,7 +277,8 @@
     const w=workflow(state,date,meal);
     if(!w.menuReady)throw new Error('请先确认主菜单和备用菜');
     if(!w.live.length)throw new Error('请先添加本餐用餐人');
-    if(w.conflicts.length)throw new Error('请先处理忌口冲突或补全相关菜品食材');
+    if(w.conflicts.length)throw new Error('请先处理已发现的忌口冲突');
+    if(w.reviews.length)throw new Error('请先确认待核对的本店用料，无需补写整份配方');
     if(w.missingAddress.length)throw new Error('请补全配送地址，或设置为自提');
     if(w.missingNutrition.length)throw new Error('请补全每道菜的成品热量，再生成标签');
     planOf(state,date,meal).rosterConfirmed=rosterSignature(state,date,meal);
@@ -267,7 +308,7 @@
     if(!candidate)throw new Error('请选择本餐备用菜');
     requireNutrition(state,[candidate]);
     if(box.items.some((i,n)=>n!==index&&i.dishId===dishId))throw new Error('这份餐已经包含这道备用菜');
-    if(itemCheck(state,box,candidate).blocked)throw new Error('这道备用菜仍有忌口冲突或食材未完整');
+    if(itemCheck(state,box,candidate).blocked)throw new Error('这道备用菜仍有忌口冲突或本店食材待核对');
     if(box.portionMode==='manual'||(!box.portionMode&&box.custom)) {
       const items=copy(box.items);items[index]=copy(candidate);setBoxItems(state,box,items);
     } else {
@@ -300,7 +341,7 @@
     for (const box of boxes) {
       if (!box.items.length) throw new Error('请先设置菜单');
       requireNutrition(state,box.items);
-      if (checks(state, box).blocked) throw new Error('请先处理忌口或核对菜品食材');
+      if (checks(state, box).blocked) throw new Error('请先处理忌口或核对本店用料');
       const order = state.orders.find(o => o.id === box.orderId);
       if (!order) throw new Error('该餐盒缺少订餐记录');
       counts.set(order.id, (counts.get(order.id) || 0) + 1);
@@ -336,6 +377,8 @@
     for (const d of state.dishes) {
       if (!d.name || !d.nutrition || !['legacy','manual','boohee'].includes(d.nutrition.source)) throw new Error('菜品数据不完整');
       if (d.nutrition.source !== 'legacy' && !validNutrition(d)) throw new Error('请填写有效的成品热量与重量口径');
+      if(d.dietaryReviews!==undefined&&(!Array.isArray(d.dietaryReviews)||d.dietaryReviews.some(r=>!r||dietaryTerms([r.term]).length!==1||typeof r.contains!=='boolean'||typeof r.signature!=='string'||!r.at)))throw new Error('本店用料确认记录不完整');
+      if(d.ingredientsSource!==undefined&&!['merchant','boohee','unknown'].includes(d.ingredientsSource))throw new Error('配料来源不正确');
       if (d.nutrition.source === 'manual' && !String(d.nutrition.reference || '').trim()) throw new Error('请填写热量数值依据');
     }
     for (const o of state.orders) {
@@ -346,5 +389,5 @@
     for (const items of lists) for (const i of items) if (!dishOf(state, i.dishId) || !Number.isFinite(Number(i.grams)) || Number(i.grams) <= 0 || Number(i.grams) > 10000) throw new Error('请填写有效的菜品克重（1–10000 g）');
     return state;
   }
-  return { requireNutrition, validateNutritionChanges, reserved, usableOrders, addDiner, cancelBox, resumeBox, adjustBalance, orderKind, orderLabel, menuRepeats, purgeLegacyDishes, copy, today, nextDate, initial, hydrate, dishOf, remaining, validNutrition, nutrition, checks, itemCheck, sync, touch, finish, validate, planOf, workflow, confirmMenu, confirmRoster, setMenu, setBoxItems, replaceWithBackup, mealTarget, allocate, recalculateBox, refreshPending, restoreAutomatic };
+  return { dietaryTerms, ingredientSource, activeDietaryReviews, setDietaryReview, requireNutrition, validateNutritionChanges, reserved, usableOrders, addDiner, cancelBox, resumeBox, adjustBalance, orderKind, orderLabel, menuRepeats, purgeLegacyDishes, copy, today, nextDate, initial, hydrate, dishOf, remaining, validNutrition, nutrition, checks, itemCheck, sync, touch, finish, validate, planOf, workflow, confirmMenu, confirmRoster, setMenu, setBoxItems, replaceWithBackup, mealTarget, allocate, recalculateBox, refreshPending, restoreAutomatic };
 });

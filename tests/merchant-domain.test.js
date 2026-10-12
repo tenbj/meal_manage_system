@@ -51,7 +51,7 @@ test('insufficient credits reject entire completion batch',()=>{
 });
 test('dietary conflicts and missing ingredient information require review',()=>{
   const s=fixture();s.customers[0].allergies=['大米'];D.sync(s,'2026-10-08','lunch');assert.throws(()=>D.finish(s,[s.boxes[0].id]),/忌口/);
-  s.dishes[0].ingredients=[];assert.equal(D.checks(s,s.boxes[0]).unknown,true);
+  s.dishes[0].ingredients=[];assert.equal(D.checks(s,s.boxes[0]).conflicts.length,1);s.customers[0].allergies=['花生'];assert.equal(D.checks(s,s.boxes[0]).unknown,true);
 });
 test('single customer multi-box orders get distinct stable IDs',()=>{
   const s=fixture();s.orders[0].portions=2;D.sync(s,'2026-10-08','lunch');assert.equal(s.boxes.length,2);assert.notEqual(s.boxes[0].id,s.boxes[1].id);
