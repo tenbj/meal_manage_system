@@ -4,6 +4,7 @@ const cors = require("cors");
 const { config } = require("./config");
 const repository = require("./repository");
 const { createAiWriteRouter } = require("./ai-write-api");
+const { createMerchantRouter } = require("./merchant");
 
 function createApp(options = {}) {
   const repo = options.repository || repository;
@@ -12,6 +13,7 @@ function createApp(options = {}) {
   app.disable("x-powered-by");
   app.use(cors());
   app.use(express.json({ limit: "25mb" }));
+  app.use("/api/merchant", createMerchantRouter(repo));
   app.use(express.static(path.resolve(process.cwd(), "public")));
   app.use("/api/ai", createAiWriteRouter({ actions: aiWrite.actions || repo, token: aiWrite.token ?? config.aiWriteToken }));
 

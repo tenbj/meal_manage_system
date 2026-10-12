@@ -1,0 +1,407 @@
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else root.MealDomain = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  // JSON object property order can change during a MySQL JSON round trip.
+  function stableJson(value) {
+    return JSON.stringify(value,(_,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);
+  }
+  function sameSignature(a,b) {
+    if(a===b)return true;if(!a||!b)return false;
+    try{return stableJson(JSON.parse(a))===stableJson(JSON.parse(b));}catch{return false;}
+  }
+  const copy = value => JSON.parse(JSON.stringify(value));
+  const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  function nextDate(date, days = 1) { const d = new Date(`${date}T12:00:00Z`); d.setUTCDate(d.getUTCDate()+days); return d.toISOString().slice(0,10); }
+  const keyOf = (date, meal) => `${date}:${meal}`;
+  function planOf(state, date, meal) {
+    state.plans ||= {};
+    return state.plans[keyOf(date,meal)] ||= { backups: [], menuConfirmed: '', rosterConfirmed: '' };
+  }
+  function initial(old = {}) {
+    const state = { version: 1, rosterMode: 'manual', creditAdjustments: [], settings: { name: '我的健康小饭桌', phone: '', labelWidth: 50, labelHeight: 70 }, customers: copy(old.customers || []), dishes: (old.dishes || []).map(d => ({ ...d, nutrition: { source: 'legacy', kcal100: null, basis: 'cooked', reference: d.source || '' }, defaultGrams: d.category === '主食' ? 120 : 150 })), orders: [], menus: {}, boxes: [] };
+    state.orders = (old.orders || []).map(o => ({ ...o, meals: ['lunch', 'dinner'], weekdays: [0,1,2,3,4,5,6], portions: 1, credits: o.totalMealCredits || 0 }));
+    for (const recipe of old.recipes || []) for (const meal of ['lunch', 'dinner']) {
+      const ids = Object.values(recipe.meals?.[meal]?.categories || {}).filter(Boolean);
+      state.menus[`${recipe.date}:${meal}`] = ids.map(dishId => ({ dishId, grams: state.dishes.find(d => d.id === dishId)?.defaultGrams || 150 }));
+    }
+    state.boxes = (old.dailyOut || []).map(row => ({ ...row, orderId: state.orders.find(o => o.customerId === row.customerId && o.startDate <= row.date && o.endDate >= row.date)?.id || '', status: row.paused ? 'paused' : 'completed', imported: true, version: 1, exportedVersion: 0, items: copy(row.items || []) }));
+    return hydrate(state);
+  }
+  function hydrate(state) {
+    state.plans ||= {}; state.creditAdjustments ||= [];
+    // Keep references from historical menus even when their original dish was removed.
+    const ids = new Set([...state.dishes,...(state.archivedDishes||[])].map(d => d.id));
+    for (const item of [...Object.values(state.menus).flat(), ...Object.values(state.plans).flatMap(p=>p.backups||[]), ...state.boxes.flatMap(b => b.items)]) {
+      if (!ids.has(item.dishId)) {
+        state.dishes.push({ id: item.dishId, name: `历史菜品（${item.dishId}，待补全）`, category: '其他', ingredients: [], defaultGrams: 150, nutrition: { source: 'legacy', kcal100: null, basis: 'cooked', reference: '历史菜品资料缺失' } });
+        ids.add(item.dishId);
+      }
+    }
+    return state;
+  }
+  function dishOf(state, id) { return state.dishes.find(d => d.id === id) || (state.archivedDishes||[]).find(d=>d.id===id); }
+  // Mifflin–St Jeor estimates resting energy expenditure; 36% is the shop's meal rule.
+  function mealTarget(customer = {}, settings = {}) {
+    const gender = customer.gender, age = Number(customer.age), height = Number(customer.height), weight = Number(customer.currentWeight);
+    if (age > 0 && age < 18) return { kcal: null, source: 'unsupported', message: '未成年人不套用成人公式，请单独确认本餐克重' };
+    if (['女','男'].includes(gender) && age >= 18 && age <= 100 && height >= 100 && height <= 250 && weight >= 25 && weight <= 350) {
+      const bmr = 10 * weight + 6.25 * height - 5 * age + (gender === '男' ? 5 : -161);
+      if (bmr <= 0) return { kcal: null, source: 'invalid', message: '身体数据无法得到有效目标，请核对资料' };
+      return { kcal: Math.round(bmr * .36), bmr: Math.round(bmr), source: 'profile', message: `静息代谢估算 ${Math.round(bmr)} × 36%` };
+    }
+    return { kcal:500, minKcal:400, maxKcal:600, source:'default', message:'资料不全，默认 500 kcal · 可接受 400–600 kcal' };
+  }
+  function allocate(state, items, customer) {
+    const target = mealTarget(customer, state.settings);
+    const fail = message => ({ items: copy(items), target, status: 'unavailable', message });
+    if (!target.kcal) return fail(target.message);
+    if (!items.length) return fail('请先选择本餐菜单');
+    if (items.some(i => !validNutrition(dishOf(state,i.dishId)) || Number(dishOf(state,i.dishId).nutrition.kcal100) <= 0)) return fail('菜品成品热量需完整且大于 0，补齐后自动计算克重');
+    const isStaple = i => dishOf(state,i.dishId).category === '主食';
+    const hasBothGroups = items.some(isStaple) && !items.every(isStaple);
+    // Preserve the merchant's relative portions within each group, not equal calories per dish.
+    const sums = [0,0];
+    items.forEach(i => { sums[isStaple(i)?0:1] += Number(i.grams) * Number(dishOf(state,i.dishId).nutrition.kcal100) / 100; });
+    const result = items.map(i => {
+      const group = isStaple(i) ? 0 : 1;
+      const budget = hasBothGroups ? target.kcal * (group===0?1/3:2/3) : target.kcal;
+      return { dishId:i.dishId, grams: Math.max(1,Math.round(Number(i.grams) * budget / sums[group])) };
+    });
+    if (result.some(i=>!Number.isFinite(i.grams)||i.grams>10000)) return fail('计算份量超出可用范围，请核对每 100 g 热量与菜单');
+    const kcal=nutrition(state,result).kcal;
+    if(target.source==='default'&&(kcal<target.minKcal||kcal>target.maxKcal))return fail('取整后的热量超出 400–600 kcal，请核对菜品热量或调整菜单');
+    return { items: result, target, status:'auto', message:hasBothGroups?'主食占热量 1/3，其余菜占 2/3；同组按基准份量同比调整，取整到 1 g':`本餐${items.some(isStaple)?'只有主食':'未选主食'}，按现有菜品比例分配全部目标热量，取整到 1 g` };
+  }
+  function portionIssue(state,box) {
+    if(box.status==='completed')return '';
+    const target=mealTarget(state.customers.find(c=>c.id===box.customerId),state.settings),n=nutrition(state,box.items);
+    if(target.source==='default'&&n.complete&&(n.kcal<target.minKcal||n.kcal>target.maxKcal))return `本餐 ${n.kcal} kcal，须调整至 400–600 kcal；可恢复自动配餐`;
+    if(box.allocation?.status==='unavailable')return `自动配餐未完成：${box.allocation.message}`;
+    return '';
+  }
+  function recalculateBox(state, box) {
+    if (['completed','cancelled'].includes(box.status)) return;
+    if (box.custom && !box.overrides) box.portionMode = 'manual';
+    if (!box.portionMode) box.portionMode = box.custom ? 'manual' : 'auto';
+    const menu = state.menus[keyOf(box.date,box.meal)] || [];
+    const effective = menu.map(i=>copy(box.overrides?.[i.dishId] || i));
+    const c = state.customers.find(c=>c.id===box.customerId);
+    const result = box.portionMode==='manual'
+      ? { items:box.items, target:mealTarget(c,state.settings), status:'manual', message:'本盒克重由商家手动确认，不随目标热量自动改变' }
+      : allocate(state,effective,c);
+    const {items,...allocation} = result;
+    const signature = stableJson({items,allocation,dishes:items.map(i=>dishOf(state,i.dishId)),customer:c});
+    if (!sameSignature(box.portionSignature,signature)) { box.items=copy(items);box.allocation=allocation;box.portionSignature=signature;touch(box); }
+  }
+  function refreshPending(state) { state.boxes.forEach(b=>recalculateBox(state,b)); }
+  function restoreAutomatic(state, box) {
+    if (box.status==='completed') throw new Error('已完成餐盒不能修改');
+    // Keep substituted dishes, discard only manual weights.
+    const menu=state.menus[keyOf(box.date,box.meal)]||[], overrides={};
+    menu.forEach((i,n)=>{const actual=box.items[n];if(actual&&actual.dishId!==i.dishId)overrides[i.dishId]={dishId:actual.dishId,grams:dishOf(state,actual.dishId)?.defaultGrams||150};});
+    box.overrides=overrides;box.custom=Object.keys(overrides).length>0;box.portionMode='auto';recalculateBox(state,box);
+  }
+  function remaining(state, order) { return Number(order.credits) + (state.creditAdjustments||[]).filter(a=>a.orderId===order.id).reduce((n,a)=>n+a.delta,0) - state.boxes.filter(b=>b.orderId===order.id&&(b.status==='completed'||b.status==='cancelled'&&b.chargeCancelled)).length; }
+  function orderKind(order) { return order.kind || (['单次','单次订餐'].includes(order.serviceType)?'single':'plan'); }
+  function orderLabel(state,order) {
+    const peers=state.orders.filter(o=>o.customerId===order.customerId&&orderKind(o)===orderKind(order));
+    return `${orderKind(order)==='plan'?'包餐':'单次'} · 第 ${peers.findIndex(o=>o.id===order.id)+1} ${orderKind(order)==='plan'?'期':'单'}`;
+  }
+  function reserved(state,order) { return state.boxes.filter(b=>b.orderId===order.id&&b.status==='pending').length; }
+  function usableOrders(state,customerId,date,meal) {
+    return state.orders.filter(o=>o.customerId===customerId&&o.status!=='已取消'&&o.startDate<=date&&o.endDate>=date&&o.meals.includes(meal)&&remaining(state,o)-reserved(state,o)>0).sort((a,b)=>(orderKind(a)==='plan'?0:1)-(orderKind(b)==='plan'?0:1)||state.orders.indexOf(a)-state.orders.indexOf(b));
+  }
+  function addDiner(state,customerId,date,meal,idFactory) {
+    if(!state.customers.some(c=>c.id===customerId))throw new Error('请先登记新客户');
+    if(state.boxes.some(b=>b.customerId===customerId&&b.date===date&&b.meal===meal))throw new Error('本餐已有记录，请使用恢复或取消操作，避免重复扣餐');
+    let order=usableOrders(state,customerId,date,meal)[0];
+    if(!order) {
+      order={id:idFactory('order'),customerId,kind:'single',serviceType:'单次',startDate:date,endDate:date,meals:[meal],weekdays:[0,1,2,3,4,5,6],credits:1,portions:1,status:'服务中',paidStatus:'未记录',createdAt:new Date().toISOString()};
+      state.orders.push(order);
+    }
+    const box={id:idFactory('box'),customerId,orderId:order.id,date,meal,status:'pending',items:[],version:1,exportedVersion:0,custom:false};
+    state.boxes.push(box);recalculateBox(state,box);return box;
+  }
+  function cancelBox(state,id,charge,reason) {
+    const b=state.boxes.find(b=>b.id===id);if(!b)throw new Error('未找到餐盒');
+    const rosterWasReady=workflow(state,b.date,b.meal).rosterReady;
+    if(b.status==='cancelled')throw new Error('已取消，无需重复操作');
+    if(!String(reason||'').trim())throw new Error('请填写取消原因');
+    const o=state.orders.find(o=>o.id===b.orderId);if(!o)throw new Error('请先关联订餐记录');
+    if(charge&&b.status!=='completed'&&remaining(state,o)<1)throw new Error('餐次不足，不能扣餐');
+    b.events ||= [];b.events.push({type:'cancel',at:new Date().toISOString(),from:b.status,charge:Boolean(charge),reason:reason.trim(),items:copy(b.items)});
+    b.status='cancelled';b.chargeCancelled=Boolean(charge);b.cancelReason=reason.trim();touch(b);
+    // Removing one diner does not alter the other already-checked boxes.
+    if(rosterWasReady)planOf(state,b.date,b.meal).rosterConfirmed=rosterSignature(state,b.date,b.meal);
+  }
+  function resumeBox(state,id) {
+    const b=state.boxes.find(b=>b.id===id);if(!b||!['paused','cancelled'].includes(b.status))throw new Error('当前记录不能恢复');
+    const o=state.orders.find(o=>o.id===b.orderId);if(!o||remaining(state,o)-reserved(state,o)+(b.chargeCancelled?1:0)<1)throw new Error('该期餐次不足，请先补餐次');
+    b.events ||= [];b.events.push({type:'resume',at:new Date().toISOString(),reason:'商家恢复本餐'});
+    b.status='pending';b.chargeCancelled=false;delete b.customerSnapshot;delete b.settingsSnapshot;
+    b.items=b.items.map(({snapshot,...i})=>i);recalculateBox(state,b);touch(b);
+  }
+  function adjustBalance(state,orderId,newBalance,reason,id) {
+    const o=state.orders.find(o=>o.id===orderId);if(!o||!Number.isInteger(newBalance)||newBalance<0)throw new Error('剩余次数应为非负整数');
+    if(newBalance<reserved(state,o))throw new Error('目标余额少于已安排餐盒，请先取消相应餐盒');
+    if(!String(reason||'').trim())throw new Error('请填写补扣原因');
+    const delta=newBalance-remaining(state,o);if(!delta)throw new Error('剩余次数没有变化');
+    state.creditAdjustments ||= [];state.creditAdjustments.push({id,orderId,delta,reason:reason.trim(),at:new Date().toISOString()});
+  }
+  function menuRepeats(state,date,meal) {
+    const main=state.menus[keyOf(date,meal)]||[], dates=[nextDate(date,-1),date,nextDate(date,1)], conflicts=[];
+    for(const day of dates)for(const other of ['lunch','dinner']) {
+      if(day===date&&other===meal)continue;
+      for(const i of state.menus[keyOf(day,other)]||[])if(main.some(m=>m.dishId===i.dishId))conflicts.push({dishId:i.dishId,date:day,meal:other});
+    }
+    return conflicts;
+  }
+  function purgeLegacyDishes(state) {
+    const old=new Set(state.dishes.map(d=>d.id));
+    for(const b of state.boxes) b.items=b.items.map(i=>old.has(i.dishId)?{...i,snapshot:i.snapshot||copy(dishOf(state,i.dishId))}:i);
+    const referenced=new Set(state.boxes.flatMap(b=>b.items.map(i=>i.dishId)));
+    state.archivedDishes=[...(state.archivedDishes||[]),...state.dishes.filter(d=>referenced.has(d.id))];
+    state.dishes=state.dishes.filter(d=>!old.has(d.id));
+    for(const [key,items] of Object.entries(state.menus)) {
+      state.menus[key]=items.filter(i=>!old.has(i.dishId));
+    }
+    for(const plan of Object.values(state.plans||{})){plan.backups=plan.backups.filter(i=>!old.has(i.dishId));plan.menuConfirmed='';plan.rosterConfirmed='';}
+    state.rosterMode='manual';state.settings.fallbackCalorieBasis='fixed-500';state.catalogResetAt=new Date().toISOString();return old.size;
+  }
+  function validNutrition(dish) {
+    const n = dish?.nutrition;
+    return !!n && ['manual', 'boohee'].includes(n.source) && ['number','string'].includes(typeof n.kcal100) && String(n.kcal100).trim() !== '' && Number.isFinite(Number(n.kcal100)) && Number(n.kcal100) >= 0 && ['cooked', 'ready'].includes(n.basis);
+  }
+  function requireNutrition(state,items,snapshots=false) {
+    const missing=items.filter(i=>!validNutrition(snapshots&&i.snapshot||dishOf(state,i.dishId)));
+    if(missing.length)throw new Error(`请先补全成品热量和重量口径：${missing.map(i=>dishOf(state,i.dishId)?.name||'未知菜品').join('、')}`);
+  }
+  // Preserve imported history, but never create or change a menu using unverified calories.
+  function validateNutritionChanges(state,previous) {
+    const changed=(a,b)=>stableJson(a)!==stableJson(b);
+    for(const d of state.dishes) {
+      const old=previous.dishes.find(x=>x.id===d.id);
+      if((!old||changed(d.nutrition,old.nutrition))&&!validNutrition(d))throw new Error('新建或修改菜品必须填写完整的成品热量和重量口径');
+    }
+    for(const [key,items] of Object.entries(state.menus))if(changed(items,previous.menus[key]))requireNutrition(state,items);
+    for(const [key,plan] of Object.entries(state.plans||{})) {
+      const old=previous.plans?.[key];
+      if(changed(plan.backups,old?.backups)||plan.menuConfirmed&&changed(plan.menuConfirmed,old?.menuConfirmed))requireNutrition(state,[...(state.menus[key]||[]),...plan.backups]);
+    }
+    for(const box of state.boxes) {
+      const old=previous.boxes.find(b=>b.id===box.id);
+      if(!['cancelled','paused'].includes(box.status)&&(!old||changed(box.items,old.items)||box.status!==old.status))requireNutrition(state,box.items,old?.status==='completed'&&box.status==='completed');
+    }
+  }
+  function nutrition(state, items) {
+    let kcal = 0; const sources = new Set(); let complete = items.length > 0;
+    for (const item of items) {
+      const dish = item.snapshot || dishOf(state, item.dishId);
+      if (!validNutrition(dish) || !Number.isFinite(Number(item.grams)) || Number(item.grams) <= 0) { complete = false; continue; }
+      kcal += Number(dish.nutrition.kcal100) * Number(item.grams) / 100;
+      sources.add(dish.nutrition.source);
+    }
+    return { complete, kcal: complete ? Math.round(kcal) : null, source: sources.size > 1 ? '薄荷健康数据＋商家录入' : sources.has('boohee') ? '薄荷健康数据' : '商家录入' };
+  }
+  function dietaryTerms(values) {
+    const empty=new Set(['无','没有','暂无','无忌口','没有忌口','不忌口','无过敏','无过敏史','无特殊忌口','无特殊要求','不限','none','no']);
+    return [...new Set((Array.isArray(values)?values:[]).map(v=>String(v).trim().toLowerCase()).filter(v=>v&&!empty.has(v)))];
+  }
+  function ingredientSource(dish) {
+    if(dish?.ingredientsSource==='merchant')return 'merchant';
+    if(dish?.ingredientsSource==='unknown')return 'unknown';
+    if(dish?.ingredientsSource==='boohee'||dish?.nutrition?.source==='boohee')return 'boohee';
+    return (dish?.ingredients||[]).length?'merchant':'unknown';
+  }
+  function ingredientSignature(dish) {
+    return stableJson({name:dish?.name||'',category:dish?.category||'',ingredients:dish?.ingredients||[],source:ingredientSource(dish),version:dish?.ingredientsVersion||0});
+  }
+  function ingredientMatches(text,term) {
+    const groups={'海鲜':['鱼','虾','蟹','贝','鱿鱼','海鲜'],'坚果':['花生','核桃','杏仁','腰果','坚果'],'奶制品':['牛奶','奶酪','奶油','酸奶'],'豆制品':['大豆','黄豆','豆腐','豆浆','豆皮'],'牛肉':['牛肉','肥牛','牛腩','牛柳','牛排'],'番茄':['番茄','西红柿'],'西红柿':['番茄','西红柿'],'大米':['大米','米饭'],'鸡蛋':['鸡蛋','炒蛋','蒸蛋','煎蛋','蛋花']};
+    return [term,...(groups[term]||[])].some(t=>String(text||'').toLowerCase().includes(t));
+  }
+  function dietaryEvidence(dish,term) {
+    const ingredients=(dish?.ingredients||[]).filter(x=>ingredientMatches(x,term));
+    const name=String(dish?.name||'').replace(/鱼香/g,'');
+    const nameMatch=ingredientMatches(name,term)||(term==='海鲜'&&dish?.category==='海鲜');
+    return {ingredients,nameMatch,actual:ingredientSource(dish)==='merchant'&&ingredients.length>0};
+  }
+  function activeDietaryReviews(dish) {
+    const signature=ingredientSignature(dish),reviews=new Map();
+    for(const review of dish?.dietaryReviews||[])if(review.signature===signature)reviews.set(review.term,review);
+    return [...reviews.values()];
+  }
+  function setDietaryReview(state,dishId,term,contains) {
+    const dish=state.dishes.find(d=>d.id===dishId),terms=dietaryTerms([term]);
+    if(!dish||terms.length!==1||typeof contains!=='boolean')throw new Error('请核对菜品和忌口项');
+    term=terms[0];const evidence=dietaryEvidence(dish,term);
+    if(!contains&&(evidence.actual||evidence.nameMatch))throw new Error('菜名或本店已填配料包含这一项，请先修正菜品资料，不能直接确认不含');
+    dish.dietaryReviews ||= [];dish.dietaryReviews.push({term,contains,signature:ingredientSignature(dish),at:new Date().toISOString()});
+  }
+  function checks(state, box) {
+    const customer=box.customerSnapshot||state.customers.find(c=>c.id===box.customerId);
+    const allergies=dietaryTerms(customer?.allergies),terms=dietaryTerms([...(customer?.restrictions||[]),...allergies]);
+    const issues=[];
+    for(const item of box.items) {
+      const dish=item.snapshot||dishOf(state,item.dishId),reviews=activeDietaryReviews(dish);
+      for(const term of terms) {
+        const evidence=dietaryEvidence(dish,term),review=reviews.find(r=>r.term===term);
+        const base={dishId:item.dishId,dishName:dish?.name||'未知菜品',term,allergy:allergies.includes(term)};
+        if(evidence.actual||evidence.nameMatch||review?.contains===true) {
+          const reason=evidence.actual?`本店配料：${evidence.ingredients.join('、')}`:evidence.nameMatch?'菜名 / 分类匹配':'商家已确认本店含有';
+          issues.push({...base,kind:'conflict',reason});continue;
+        }
+        if(review?.contains===false)continue;
+        if(evidence.ingredients.length)issues.push({...base,kind:'review',reason:`${ingredientSource(dish)==='boohee'?'薄荷参考配方':'已有参考配料'}含 ${evidence.ingredients.join('、')}，本店做法待确认`});
+        else if(allergies.includes(term))issues.push({...base,kind:'review',reason:'现有记录未匹配，需确认本店是否使用该过敏项（含用油 / 调料）'});
+      }
+    }
+    const conflicts=issues.filter(i=>i.kind==='conflict').map(i=>`${i.dishName}：${i.term}（${i.reason}）`),reviews=issues.filter(i=>i.kind==='review');
+    return {issues,conflicts,reviews,unknown:reviews.length>0,blocked:issues.length>0,hasTerms:terms.length>0};
+  }
+  function itemCheck(state, box, item) { return checks(state,{...box,items:[item]}); }
+  function menuSignature(state,date,meal) { return stableJson({main:state.menus[keyOf(date,meal)]||[],backups:planOf(state,date,meal).backups}); }
+  function rosterSignature(state,date,meal) {
+    return stableJson(state.boxes.filter(b=>b.date===date&&b.meal===meal&&!['paused','cancelled'].includes(b.status)).map(b=>({id:b.id,items:b.items.map(i=>({dishId:i.dishId,grams:i.grams,nutrition:(i.snapshot||dishOf(state,i.dishId))?.nutrition,dietaryBasis:ingredientSignature(i.snapshot||dishOf(state,i.dishId)),dietaryReviews:activeDietaryReviews(i.snapshot||dishOf(state,i.dishId))})),allocation:b.allocation,customer:b.customerSnapshot||state.customers.find(c=>c.id===b.customerId)})));
+  }
+  function workflow(state,date,meal) {
+    const plan=planOf(state,date,meal), main=state.menus[keyOf(date,meal)]||[], live=state.boxes.filter(b=>b.date===date&&b.meal===meal&&!['paused','cancelled'].includes(b.status));
+    const menuValid=main.length>0&&new Set(plan.backups.map(i=>i.dishId)).size===plan.backups.length&&!plan.backups.some(i=>main.some(m=>m.dishId===i.dishId))&&[...main,...plan.backups].every(i=>validNutrition(dishOf(state,i.dishId)));
+    const menuReady=menuValid&&!menuRepeats(state,date,meal).length&&sameSignature(plan.menuConfirmed,menuSignature(state,date,meal));
+    const conflicts=live.filter(b=>b.status!=='completed'&&checks(state,b).conflicts.length),reviews=live.filter(b=>b.status!=='completed'&&checks(state,b).unknown);
+    const missingNutrition=live.filter(b=>!nutrition(state,b.items).complete);
+    const portionIssues=live.filter(b=>portionIssue(state,b));
+    const missingAddress=live.filter(b=>{const c=b.customerSnapshot||state.customers.find(c=>c.id===b.customerId);return c?.fulfillment!=='pickup'&&!String(c?.address||'').trim();});
+    const rosterReady=menuReady&&live.length>0&&!conflicts.length&&!reviews.length&&!missingAddress.length&&!missingNutrition.length&&!portionIssues.length&&sameSignature(plan.rosterConfirmed,rosterSignature(state,date,meal));
+    return {menuValid,menuReady,rosterReady,live,conflicts,reviews,missingNutrition,missingAddress,portionIssues,stage:rosterReady?3:menuReady?2:1};
+  }
+  function confirmMenu(state,date,meal) {
+    requireNutrition(state,[...(state.menus[keyOf(date,meal)]||[]),...planOf(state,date,meal).backups]);
+    if(!workflow(state,date,meal).menuValid)throw new Error('请选择主菜单；备用菜不能与主菜或其他备用菜重复');
+    if(menuRepeats(state,date,meal).length)throw new Error('与同日另一餐或相邻日期有重复菜，请更换后确认');
+    const plan=planOf(state,date,meal);plan.menuConfirmed=menuSignature(state,date,meal);sync(state,date,meal);
+  }
+  function confirmRoster(state,date,meal) {
+    refreshPending(state);
+    const w=workflow(state,date,meal);
+    if(!w.menuReady)throw new Error('请先确认主菜单和备用菜');
+    if(!w.live.length)throw new Error('请先添加本餐用餐人');
+    if(w.conflicts.length)throw new Error('请先处理已发现的忌口冲突');
+    if(w.reviews.length)throw new Error('请先确认待核对的本店用料，无需补写整份配方');
+    if(w.missingAddress.length)throw new Error('请补全配送地址，或设置为自提');
+    if(w.missingNutrition.length)throw new Error('请补全每道菜的成品热量，再生成标签');
+    if(w.portionIssues.length)throw new Error(portionIssue(state,w.portionIssues[0]));
+    planOf(state,date,meal).rosterConfirmed=rosterSignature(state,date,meal);
+  }
+  function captureOverrides(state,box) {
+    if(box.overrides)return;
+    box.overrides={};
+    const base=state.menus[keyOf(box.date,box.meal)]||[];
+    if(box.custom)base.forEach((i,index)=>{const actual=box.items[index];if(actual&&(actual.dishId!==i.dishId||actual.grams!==i.grams))box.overrides[i.dishId]=copy(actual);});
+  }
+  function setMenu(state,date,meal,items) {
+    requireNutrition(state,items);
+    state.boxes.filter(b=>b.date===date&&b.meal===meal&&b.status!=='completed').forEach(b=>captureOverrides(state,b));
+    state.menus[keyOf(date,meal)]=copy(items);sync(state,date,meal);
+  }
+  function setBoxItems(state,box,items) {
+    if(box.status==='completed')throw new Error('已完成餐盒不能修改');
+    requireNutrition(state,items);
+    const base=state.menus[keyOf(box.date,box.meal)]||[];
+    box.overrides={};base.forEach((i,index)=>{const actual=items[index];if(actual&&(actual.dishId!==i.dishId||actual.grams!==i.grams))box.overrides[i.dishId]=copy(actual);});
+    box.items=copy(items);box.custom=true;box.portionMode='manual';recalculateBox(state,box);
+  }
+  function replaceWithBackup(state,boxId,index,dishId) {
+    const box=state.boxes.find(b=>b.id===boxId);
+    if(!box||box.status==='completed'||!box.items[index])throw new Error('这份餐已完成或菜品已变化，请刷新后重试');
+    const candidate=planOf(state,box.date,box.meal).backups.find(i=>i.dishId===dishId);
+    if(!candidate)throw new Error('请选择本餐备用菜');
+    requireNutrition(state,[candidate]);
+    if(box.items.some((i,n)=>n!==index&&i.dishId===dishId))throw new Error('这份餐已经包含这道备用菜');
+    if(itemCheck(state,box,candidate).blocked)throw new Error('这道备用菜仍有忌口冲突或本店食材待核对');
+    if(box.portionMode==='manual'||(!box.portionMode&&box.custom)) {
+      const items=copy(box.items);items[index]=copy(candidate);setBoxItems(state,box,items);
+    } else {
+      const slot=(state.menus[keyOf(box.date,box.meal)]||[])[index];
+      if(!slot)throw new Error('菜单已变化，请刷新后重试');
+      box.overrides ||= {};box.overrides[slot.dishId]=copy(candidate);box.custom=true;box.portionMode='auto';recalculateBox(state,box);
+    }
+  }
+  function sync(state, date, meal) {
+    const menu = state.menus[`${date}:${meal}`] || [];
+    const weekday = new Date(`${date}T12:00:00+08:00`).getUTCDay();
+    for (const order of state.rosterMode==='manual'?[]:state.orders) {
+      if (!['服务中','未开始'].includes(order.status) || order.startDate > date || order.endDate < date || !order.meals.includes(meal) || !order.weekdays.includes(weekday)) continue;
+      const available = remaining(state, order);
+      for (let p = 0; p < order.portions; p++) {
+        const id = `box:${order.id}:${date}:${meal}:${p}`;
+        if (state.boxes.some(b => b.id === id || (b.imported && b.orderId === order.id && b.date === date && b.meal === meal))) continue;
+        if (p >= available) break;
+        state.boxes.push({ id, orderId: order.id, customerId: order.customerId, date, meal, items: copy(menu), status: 'pending', version: 1, exportedVersion: 0, custom: false });
+      }
+    }
+    for (const box of state.boxes.filter(b => b.date === date && b.meal === meal && !['completed','cancelled'].includes(b.status))) {
+      recalculateBox(state,box);
+    }
+  }
+  function touch(box) { box.version = (box.version || 1) + 1; }
+  function finish(state, ids) {
+    refreshPending(state);
+    const boxes = [...new Set(ids)].map(id => state.boxes.find(b => b.id === id)).filter(b => b && b.status === 'pending');
+    const counts = new Map();
+    for (const box of boxes) {
+      if (!box.items.length) throw new Error('请先设置菜单');
+      requireNutrition(state,box.items);
+      if(portionIssue(state,box))throw new Error(portionIssue(state,box));
+      if (checks(state, box).blocked) throw new Error('请先处理忌口或核对本店用料');
+      const order = state.orders.find(o => o.id === box.orderId);
+      if (!order) throw new Error('该餐盒缺少订餐记录');
+      counts.set(order.id, (counts.get(order.id) || 0) + 1);
+      if (counts.get(order.id) > remaining(state, order)) throw new Error('剩余餐次不足，请先续餐');
+    }
+    for (const box of boxes) {
+      box.items = box.items.map(i => ({ ...i, snapshot: copy(dishOf(state, i.dishId)) }));
+      box.customerSnapshot = copy(state.customers.find(c => c.id === box.customerId));
+      box.settingsSnapshot = copy(state.settings);
+      box.status = 'completed'; box.completedAt = new Date().toISOString();
+      box.events ||= [];box.events.push({type:'complete',at:box.completedAt,reason:'分装完成，扣除 1 次',items:copy(box.items)});
+    }
+    return boxes.length;
+  }
+  function validate(state) {
+    if (state?.version !== 1 || !state.settings || !state.menus) throw new Error('数据格式不正确');
+    for (const key of ['customers','orders','dishes','boxes']) {
+      if (!Array.isArray(state[key]) || state[key].length > 100000) throw new Error('数据格式不正确');
+      if (new Set(state[key].map(i => i.id)).size !== state[key].length) throw new Error('存在重复记录');
+    }
+    if (!String(state.settings.name || '').trim()) throw new Error('请填写店名');
+    if (![state.settings.labelWidth, state.settings.labelHeight].every(n => Number.isFinite(n) && n >= 30 && n <= 150)) throw new Error('标签尺寸应在 30–150 mm 之间');
+    const adjustments=state.creditAdjustments||[];
+    if(!Array.isArray(adjustments)||new Set(adjustments.map(a=>a.id)).size!==adjustments.length)throw new Error('餐次调整流水存在重复记录');
+    for(const a of adjustments)if(!a.id||!state.orders.some(o=>o.id===a.orderId)||!Number.isInteger(a.delta)||!String(a.reason||'').trim())throw new Error('餐次调整必须关联订单，填写整数和原因');
+    for (const c of state.customers) {
+      if (!String(c.name || '').trim()) throw new Error('请填写客户称呼');
+      if(c.gender&&!['男','女'].includes(c.gender))throw new Error('请选择有效性别或留空');
+      for(const [key,min,max,label] of [['age',1,100,'年龄'],['height',100,250,'身高'],['currentWeight',25,350,'体重']]) {
+        if(c[key]!==undefined&&c[key]!==null&&c[key]!==''&&Number(c[key])!==0&&(!Number.isFinite(Number(c[key]))||Number(c[key])<min||Number(c[key])>max))throw new Error(`请核对${label}，并使用页面标示的单位`);
+      }
+    }
+    for (const d of state.dishes) {
+      if (!d.name || !d.nutrition || !['legacy','manual','boohee'].includes(d.nutrition.source)) throw new Error('菜品数据不完整');
+      if (d.nutrition.source !== 'legacy' && !validNutrition(d)) throw new Error('请填写有效的成品热量与重量口径');
+      if(d.dietaryReviews!==undefined&&(!Array.isArray(d.dietaryReviews)||d.dietaryReviews.some(r=>!r||dietaryTerms([r.term]).length!==1||typeof r.contains!=='boolean'||typeof r.signature!=='string'||!r.at)))throw new Error('本店用料确认记录不完整');
+      if(d.ingredientsSource!==undefined&&!['merchant','boohee','unknown'].includes(d.ingredientsSource))throw new Error('配料来源不正确');
+      if (d.nutrition.source === 'manual' && !String(d.nutrition.reference || '').trim()) throw new Error('请填写热量数值依据');
+    }
+    for (const o of state.orders) {
+      if (!state.customers.some(c => c.id === o.customerId) || !o.startDate || !o.endDate || o.startDate > o.endDate || !Number.isInteger(o.portions) || o.portions < 1 || !Number.isInteger(o.credits) || o.credits < 1 || !o.meals?.length || !o.weekdays?.length) throw new Error('订餐日期、份数或餐次不正确');
+    }
+    for(const plan of Object.values(state.plans||{}))if(!Array.isArray(plan.backups)||new Set(plan.backups.map(i=>i.dishId)).size!==plan.backups.length)throw new Error('备用菜不能重复，请逐道选择');
+    const lists = [...Object.values(state.menus), ...Object.values(state.plans||{}).map(p=>p.backups), ...state.boxes.map(b => b.items)];
+    for (const items of lists) for (const i of items) if (!dishOf(state, i.dishId) || !Number.isFinite(Number(i.grams)) || Number(i.grams) <= 0 || Number(i.grams) > 10000) throw new Error('请填写有效的菜品克重（1–10000 g）');
+    return state;
+  }
+  return { portionIssue, dietaryTerms, ingredientSource, activeDietaryReviews, setDietaryReview, requireNutrition, validateNutritionChanges, reserved, usableOrders, addDiner, cancelBox, resumeBox, adjustBalance, orderKind, orderLabel, menuRepeats, purgeLegacyDishes, copy, today, nextDate, initial, hydrate, dishOf, remaining, validNutrition, nutrition, checks, itemCheck, sync, touch, finish, validate, planOf, workflow, confirmMenu, confirmRoster, setMenu, setBoxItems, replaceWithBackup, mealTarget, allocate, recalculateBox, refreshPending, restoreAutomatic };
+});

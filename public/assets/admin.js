@@ -2978,7 +2978,7 @@
       const group = groups.find((entry) => entry.categories.includes(dishItem.category));
       if (group) group.items.push(`${dishItem.name}${item.grams}g`);
     });
-    return groups.filter((group) => group.items.length).map((group) => ({ label: group.label, text: group.items.join(" | ") }));
+    return groups.filter((group) => group.items.length).map((group) => ({ label: group.label, text: group.items.join("\n") }));
   }
 
   function portionLabel(kcal, grams) {
@@ -3310,44 +3310,58 @@
 
     const textX = x + tagWidth + Math.round((1.4 * LABEL_CANVAS_DPI) / 25.4);
     const maxWidth = textRight - textX;
-    const lines = labelFoodLines(ctx, text, labelFont(6.7, 400), maxWidth);
+    const layout = labelFoodLayout(ctx, text, maxWidth, rowHeight);
     ctx.save();
     ctx.fillStyle = colors.ink;
-    ctx.font = labelFont(6.7, 400);
-    ctx.fillText(lines[0] || "", Math.round(textX), Math.round(y + rowHeight * (lines.length > 1 ? 0.34 : 0.68)));
-    if (lines[1]) ctx.fillText(lines[1], Math.round(textX), Math.round(y + rowHeight * 0.82));
+    ctx.font = layout.font;
+    ctx.textBaseline = "middle";
+    const firstLineY = y + rowHeight / 2 - ((layout.lines.length - 1) * layout.lineHeight) / 2;
+    layout.lines.forEach((line, index) => {
+      ctx.fillText(line, Math.round(textX), Math.round(firstLineY + index * layout.lineHeight));
+    });
     ctx.restore();
     return y + rowHeight;
   }
 
-  function labelFoodLines(ctx, text, fontValue, maxWidth) {
-    const raw = String(text || "-");
+  function labelFoodItems(text) {
+    return String(text || "")
+      .split(/\r?\n|\|/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function labelFoodLayout(ctx, text, maxWidth, rowHeight) {
+    const lines = labelFoodItems(text);
+    if (!lines.length) lines.push("-");
+    const sizePt = labelFoodFitSizePt(ctx, lines, maxWidth, rowHeight);
+    return {
+      lines,
+      font: labelFont(sizePt, 400),
+      lineHeight: labelFoodLineHeight(sizePt),
+    };
+  }
+
+  function labelFoodFitSizePt(ctx, lines, maxWidth, rowHeight) {
+    let low = 0.8;
+    let high = 6.7;
+    for (let index = 0; index < 14; index += 1) {
+      const mid = (low + high) / 2;
+      if (labelFoodFits(ctx, lines, mid, maxWidth, rowHeight)) low = mid;
+      else high = mid;
+    }
+    return low;
+  }
+
+  function labelFoodFits(ctx, lines, sizePt, maxWidth, rowHeight) {
     ctx.save();
-    ctx.font = fontValue;
-    const parts = raw.split("|").map((item) => item.trim()).filter(Boolean);
-    if (parts.length === 2 && parts.every((part) => ctx.measureText(part).width <= maxWidth)) {
-      ctx.restore();
-      return parts;
-    }
-    if (ctx.measureText(raw).width <= maxWidth) {
-      ctx.restore();
-      return [raw];
-    }
-    const lines = [];
-    let current = "";
-    for (const char of raw) {
-      if (ctx.measureText(current + char).width > maxWidth && current) {
-        lines.push(current);
-        current = char;
-        if (lines.length === 1) continue;
-      } else {
-        current += char;
-      }
-    }
-    if (current) lines.push(current);
-    if (lines.length > 2) lines.splice(1, lines.length - 1, fitCanvasText(ctx, lines.slice(1).join(""), maxWidth));
+    ctx.font = labelFont(sizePt, 400);
+    const fitsWidth = lines.every((line) => ctx.measureText(line).width <= maxWidth);
     ctx.restore();
-    return lines.slice(0, 2);
+    return fitsWidth && lines.length * labelFoodLineHeight(sizePt) <= rowHeight;
+  }
+
+  function labelFoodLineHeight(sizePt) {
+    return Math.max(1, Math.ceil((sizePt * LABEL_CANVAS_DPI / 72) * 1.08));
   }
 
   function drawManagementRow(ctx, label, text, x, y, width, height, pt, colors, strong) {

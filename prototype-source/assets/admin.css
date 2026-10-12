@@ -1039,6 +1039,7 @@ tbody tr.selected-row {
 .sticker-food-line span {
   padding-top: 4px;
   line-height: 1.45;
+  white-space: pre-line;
 }
 
 .sticker-tip {
