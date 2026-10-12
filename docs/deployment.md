@@ -113,3 +113,11 @@ http://localhost:3200/api/health
 ## 11. API 文档
 
 外部脚本或自动化 skill 需要向系统写入业务数据时，见 [AI 功能写入 API](skill-data-api.md)。
+
+## 12. v0.2.0 商家工作台
+
+- 新界面使用 `/api/merchant`，数据持久化到 `merchant_workspace`（JSON 状态与修订号）；第一次访问时自动创建并从原表导入，此后以新表为准。旧接口与旧表不会自动同步新版数据。
+- 升级前备份数据库。升级后重新核对未完成餐盒；新的自动配餐逻辑会调整有问题的待分装克重，旧标签如被标记失效则重新打印。已完成餐盒保留历史快照。
+- 薄荷 API Key 在本机“店铺设置”验证配置，或通过服务端 `BOOHEE_API_KEY` 提供；`.runtime/boohee.json` 不进入 Git。升级时保留本机 `.env`、`.runtime/` 和数据库。
+- 不要将 `reset-merchant-catalog.js --apply` 或强制种子导入当作升级步骤；它们会清理数据，不是发布所必需。
+- GitHub Release 是代码版本发布。目前没有仓库自动部署流程，也未配置公网登录、商家隔离及托管目标；发布 Release 不会把 localhost 变为公网服务。
