@@ -1,9 +1,9 @@
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const assert=require('node:assert/strict'),fs=require('node:fs'),D=require('../public/assets/merchant-domain');
+const assert=require('node:assert/strict'),fs=require('node:fs'),D=require('../../public/assets/merchant-domain');
 (async()=>{
-  fs.mkdirSync('tmp',{recursive:true});const browser=await chromium.launch({headless:true});
+  fs.mkdirSync('tmp',{recursive:true});const browser=await chromium.launch({headless:true,...(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE}:{})});
   try {
-    const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+    const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',route=>route.abort('blockedbyclient'));
     let s=D.initial(),rev=1;const tomorrow=D.nextDate(D.today());
     s.settings.name='禾日健康小饭桌';s.customers=[{id:'c',name:'测试客户',nickname:'林林',fulfillment:'pickup',restrictions:['番茄'],allergies:[]}];
     s.dishes=[['rice','杂粮饭','主食',120,['大米']],['chicken','番茄鸡肉','荤',150,['番茄','鸡肉']],['veg','清炒时蔬','素',60,['青菜']],['beef','黑椒牛肉','荤',170,['牛肉']],['reserve','清炒黄瓜','素',50,['黄瓜']]].map(([id,name,category,kcal100,ingredients])=>({id,name,category,ingredients,defaultGrams:150,nutrition:{source:'manual',basis:'cooked',kcal100,reference:'隔离测试'}}));
@@ -20,11 +20,11 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),D=require('../p
       if(url.pathname.endsWith('/import')){const b=route.request().postDataJSON();assert.equal(b.confirmed,true);s.dishes.push({id:'boohee:newfood',name:'燕麦饭（隔离接口数据）',category:b.category,defaultGrams:150,ingredients:['燕麦'],nutrition:{source:'boohee',providerCode:'newfood',kcal100:110,basis:b.basis,reference:'隔离接口数据'}});return route.fulfill({json:{state:s,revision:++rev}});}
       return route.fulfill({status:503,json:{message:'隔离测试：未提供真实 API Key'}});
     });
-    const button=name=>page.getByRole('button',{name,exact:true});const close=()=>page.getByRole('button',{name:'关闭',exact:true}).last().click();const hidden=()=>page.locator('dialog').waitFor({state:'hidden'});
-    await page.goto(process.env.MERCHANT_URL||'http://localhost:3201');await page.getByRole('heading',{name:'备餐工作台',exact:true}).waitFor();assert.equal(await button('沿用上次').count(),0);
+    const button=name=>page.getByRole('button',{name,exact:true});const close=()=>page.getByRole('button',{name:'关闭',exact:true}).last().click();const hidden=()=>page.locator('#dialog').waitFor({state:'hidden',timeout:5000}).catch(async e=>{console.error(await page.locator('#dialog').innerText(),errors);throw e});
+    await require('../support/browser-fixture.cjs').open(page);await page.getByRole('heading',{name:'备餐工作台',exact:true}).waitFor();assert.equal(await button('沿用上次').count(),0);
     await button('＋ 添加备用菜').click();await page.locator('input[name=dish][value=beef]').check();await button('使用这些菜').click();await hidden();assert.equal(D.planOf(s,tomorrow,'lunch').backups.length,1);await button('＋ 添加备用菜').click();assert.equal(await page.locator('input[name=dish][value=beef]').isChecked(),true);await page.locator('input[name=dish][value=reserve]').check();await button('使用这些菜').click();await hidden();
     await page.screenshot({path:'tmp/operations-menu.png',fullPage:true});await button('菜单定好了，确认用餐人 →').click();assert.equal(s.boxes.length,0);
-    await button('登记新客户').click();assert.equal(await page.locator('input[name=height]').isVisible(),true);await page.locator('input[name=name]').fill('小周');await page.locator('select[name=fulfillment]').selectOption('pickup');await button('保存客户').click();await hidden();assert.equal(s.boxes.length,0);
+    await button('登记新客户').click();assert.equal(await page.locator('input[name=height]').isVisible(),true);await page.locator('#dialog input[name=name]').fill('小周');await page.locator('select[name=fulfillment]').selectOption('pickup');await button('保存客户').click();await hidden();assert.equal(s.boxes.length,0);
     await page.getByRole('button',{name:'客户与订单'}).click();await button('购买 / 续订包餐').first().click();await page.locator('input[name=credits]').fill('2');await button('保存本期包餐').click();await hidden();assert.equal(s.boxes.length,0);
     await button('购买 / 续订包餐').first().click();await page.locator('input[name=credits]').fill('5');await button('保存本期包餐').click();await hidden();assert.equal(s.orders.length,2);
     await button('包餐账本 / 记录').first().click();await page.getByRole('heading',{name:'包餐 · 第 1 期',exact:true}).waitFor();await page.getByRole('heading',{name:'包餐 · 第 2 期',exact:true}).waitFor();await close();

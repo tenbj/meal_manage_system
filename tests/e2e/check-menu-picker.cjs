@@ -1,9 +1,9 @@
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const assert=require('node:assert/strict'),fs=require('node:fs'),D=require('../public/assets/merchant-domain');
+const assert=require('node:assert/strict'),fs=require('node:fs'),D=require('../../public/assets/merchant-domain');
 (async()=>{
-  fs.mkdirSync('tmp',{recursive:true});const browser=await chromium.launch({headless:true});
+  fs.mkdirSync('tmp',{recursive:true});const browser=await chromium.launch({headless:true,...(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE}:{})});
   try {
-    const page=await browser.newPage({viewport:{width:1280,height:950}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+    const page=await browser.newPage({viewport:{width:1280,height:950}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',route=>route.abort('blockedbyclient'));
     let state=D.initial(),revision=1,searches=0,configured=false,searchFails=false;
     const date=D.nextDate(D.today());
     state.dishes=[['rice','杂粮饭','主食'],['beef','香煎牛肉','荤'],['fish','清蒸鲈鱼','海鲜'],['duck','香菇鸭肉','荤']].map(([id,name,category])=>({id,name,category,ingredients:[name],defaultGrams:150,nutrition:{source:'manual',kcal100:120,basis:'cooked',reference:'隔离测试'}}));
@@ -22,12 +22,12 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),D=require('../p
       if(u.pathname.endsWith('/import')){const b=route.request().postDataJSON();assert.equal(b.revision,revision);assert.equal(b.confirmed,true);const dish={id:'boohee:spinach',name:'蒜蓉菠菜',category:b.category,ingredients:['菠菜'],defaultGrams:150,nutrition:{source:'boohee',providerCode:'spinach',kcal100:45,basis:b.basis,reference:'隔离测试'}};state.dishes.push(dish);return route.fulfill({json:{state,revision:++revision,dish}});}
       throw new Error('unexpected nutrition request');
     });
-    const button=name=>page.getByRole('button',{name,exact:true});const close=()=>button('关闭').last().click();const hidden=()=>page.locator('dialog').waitFor({state:'hidden'});
-    await page.goto(process.env.MERCHANT_URL||'http://localhost:3201');await button('选择主菜').click();
+    const button=name=>page.getByRole('button',{name,exact:true});const close=()=>button('关闭').last().click();const hidden=()=>page.locator('#dialog').waitFor({state:'hidden'});
+    await require('../support/browser-fixture.cjs').open(page);await button('选择主菜').click();
     assert.equal(await page.locator('input[value=legacy]').isDisabled(),true);await page.locator('input[value=beef]').check();
     await page.locator('#pickCategoryTabs [data-category="主食"]').click();assert.equal(await page.locator('.pick-row:visible').count(),1);await page.locator('#pickCategoryTabs [data-category="海鲜"]').click();assert.equal(await page.locator('.pick-row:visible').count(),1);await page.locator('.pick-row:visible .category-tag').getByText('海鲜',{exact:true}).waitFor();await page.locator('#pickCategoryTabs [data-category=""]').click();assert.equal(await page.locator('input[value=beef]').isChecked(),true);
     await page.getByLabel('搜索常用菜').fill('香菇鸡丁');await page.getByText('我的菜品中没有匹配结果。',{exact:true}).waitFor();assert.equal(searches,0);
-    await button('手动新建').click();assert.equal(await page.locator('[name=name]').inputValue(),'香菇鸡丁');await close();await page.getByLabel('搜索常用菜').waitFor();assert.equal(await page.locator('input[value=beef]').isChecked(),true);
+    await button('手动新建').click();assert.equal(await page.locator('#dialog [name=name]').inputValue(),'香菇鸡丁');await close();await page.getByLabel('搜索常用菜').waitFor();assert.equal(await page.locator('input[value=beef]').isChecked(),true);
     await button('手动新建').click();await button('保存并选入本餐').click();assert.equal(await page.locator('[name=kcal]').evaluate(el=>el.validity.valueMissing),true);assert.equal(state.dishes.length,5);
     await page.locator('[name=kcal]').fill('155');await page.locator('[name=reference]').fill('商家配方核算');await page.locator('[name=ingredients]').fill('鸡肉，香菇');await button('保存并选入本餐').click();await page.getByLabel('搜索常用菜').waitFor();
     const manual=state.dishes.find(d=>d.name==='香菇鸡丁');assert.ok(manual);assert.equal(await page.locator(`input[value="${manual.id}"]`).isChecked(),true);assert.equal(await page.locator('input[value=rice]').isChecked(),true);assert.equal(await page.locator('input[value=beef]').isChecked(),true);assert.equal(state.menus[date+':lunch'].length,1);

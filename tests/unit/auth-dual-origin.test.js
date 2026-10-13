@@ -1,11 +1,11 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),express=require('express');
 test('HTTP and HTTPS login/logout cookies and session API origin checks coexist',async t=>{
- const db=require('../src/db');
- const user={id:99,username:'fixture',display_name:'Fixture',password_hash:await require('../src/accounts').hashPassword('fixture-password-123'),scope:'write'};
+ const db=require('../../src/db');
+ const user={id:99,username:'fixture',display_name:'Fixture',password_hash:await require('../../src/accounts').hashPassword('fixture-password-123'),scope:'write'};
  t.mock.method(db,'getPool',()=>({query:async sql=>sql.startsWith('SELECT')?[[user]]:[{affectedRows:1}]}));
  const saved=[process.env.PUBLIC_URL,process.env.ADDITIONAL_PUBLIC_URLS];
  process.env.PUBLIC_URL='https://meal.example.com';process.env.ADDITIONAL_PUBLIC_URLS='http://example.com:13200';
- const app=express();app.use(express.json());require('../src/auth').installAuth(app);app.post('/api/probe',(req,res)=>res.json({ok:true}));
+ const app=express();app.use(express.json());require('../../src/auth').installAuth(app);app.post('/api/probe',(req,res)=>res.json({ok:true}));
  const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
  const base='http://127.0.0.1:'+server.address().port;
  try{for(const origin of ['https://meal.example.com','http://example.com:13200']){

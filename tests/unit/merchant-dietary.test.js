@@ -1,4 +1,4 @@
-const test=require('node:test'),assert=require('node:assert/strict'),D=require('../public/assets/merchant-domain');
+const test=require('node:test'),assert=require('node:assert/strict'),D=require('../../public/assets/merchant-domain');
 function fixture(){
   const s=D.initial();s.customers=[{id:'c',name:'测试',fulfillment:'pickup',restrictions:[],allergies:[]}];
   s.dishes=[{id:'rice',name:'米饭',category:'主食',ingredients:[],nutrition:{source:'boohee',kcal100:116,basis:'cooked'}},{id:'egg',name:'番茄炒蛋',category:'荤',ingredients:['鸡蛋','番茄','花生油'],nutrition:{source:'boohee',kcal100:100,basis:'cooked'}}];

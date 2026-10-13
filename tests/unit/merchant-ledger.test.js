@@ -1,4 +1,4 @@
-const test=require('node:test'),assert=require('node:assert/strict'),D=require('../public/assets/merchant-domain');
+const test=require('node:test'),assert=require('node:assert/strict'),D=require('../../public/assets/merchant-domain');
 let serial=0;const id=p=>`${p}-${++serial}`;
 function fixture(){
   const s=D.initial();s.customers=[{id:'c',name:'测试客户',fulfillment:'pickup'}];

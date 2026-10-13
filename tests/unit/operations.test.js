@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {operations}=require('../src/operation-catalog'),D=require('../public/assets/merchant-domain');
+const {operations}=require('../../src/operation-catalog'),D=require('../../public/assets/merchant-domain');
 test('public completion rejects unknown, duplicate and mixed invalid IDs without changes',()=>{
  for(const ids of [['missing'],['valid','missing'],['valid','valid']]){const state=D.initial();state.boxes=[{id:'valid',status:'pending',items:[]}];const before=JSON.stringify(state);assert.throws(()=>operations.finish_boxes.apply(state,{box_ids:ids}));assert.equal(JSON.stringify(state),before);}
 });

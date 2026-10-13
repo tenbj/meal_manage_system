@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {createBoohee}=require('../src/boohee');
+const {createBoohee}=require('../../src/boohee');
 test('Boohee calls documented search and detail endpoints with server-only API key',async()=>{
   const calls=[];const api=createBoohee({readKey:async()=> 'test-key-only',fetch:async(url,options)=>{calls.push({url,options});return {ok:true,json:async()=>({code:0,data:url.includes('/search?')?{foods:[{code:'rice',name:'米饭',calories:116,is_liquid:false}],has_more:true}:{code:'rice',name:'米饭',calories:{value:116,unit:'kcal'},is_liquid:false,food_type:'菜肴',materials:{foods:[{name:'大米'}]}}})};}});
   const result=await api.search('米饭',2);assert.equal(result.foods[0].kcal100,116);assert.equal(result.hasMore,true);

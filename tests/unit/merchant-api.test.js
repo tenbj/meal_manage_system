@@ -1,10 +1,10 @@
-const {identity}=require('../src/identity');
+const {identity}=require('../../src/identity');
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const express=require('express');
-const {createMerchantRouter}=require('../src/merchant');
-const D=require('../public/assets/merchant-domain');
-const {createBoohee}=require('../src/boohee');
+const {createMerchantRouter}=require('../../src/merchant');
+const D=require('../../public/assets/merchant-domain');
+const {createBoohee}=require('../../src/boohee');
 
 test('merchant API persists revisions, rejects stale writes and unconfigured source claims',async()=>{
   let record={revision:1,payload:JSON.stringify(D.initial())};

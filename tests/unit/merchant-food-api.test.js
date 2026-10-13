@@ -1,6 +1,6 @@
-const {identity}=require('../src/identity');
+const {identity}=require('../../src/identity');
 const test=require('node:test'),assert=require('node:assert/strict'),express=require('express');
-const D=require('../public/assets/merchant-domain'),{createMerchantRouter}=require('../src/merchant');
+const D=require('../../public/assets/merchant-domain'),{createMerchantRouter}=require('../../src/merchant');
 test('food search is local first; confirmed provider imports persist and deduplicate across restart',async()=>{
   const mysqlOrder=value=>Array.isArray(value)?value.map(mysqlOrder):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort((a,b)=>a.length-b.length||a.localeCompare(b)).map(k=>[k,mysqlOrder(value[k])])):value;
   let record={revision:1,payload:JSON.stringify(D.initial())},searches=0,details=0;

@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const D=require('../public/assets/merchant-domain');
+const D=require('../../public/assets/merchant-domain');
 function fixture() {
   const s=D.initial(),date='2026-10-09';s.rosterMode='legacy-auto';
   s.customers=[{id:'c',name:'配餐测试',gender:'女',age:30,height:160,currentWeight:60,fulfillment:'pickup'}];

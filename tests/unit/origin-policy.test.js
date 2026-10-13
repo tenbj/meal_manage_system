@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {createOriginPolicy}=require('../src/origin-policy');
+const {createOriginPolicy}=require('../../src/origin-policy');
 test('single origin remains default; absent, null, lookalike and different port origins fail closed',()=>{
  const policy=createOriginPolicy({PUBLIC_URL:'https://meal.example.com'});
  assert(policy.allows('https://meal.example.com'));

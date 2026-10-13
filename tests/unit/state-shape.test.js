@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { stateShape, parseJson } = require("../src/repository");
+const { stateShape, parseJson } = require("../../src/repository");
 
 test("stateShape keeps all entity arrays present", () => {
   const state = stateShape({ customers: [{ id: "cus_1" }] });

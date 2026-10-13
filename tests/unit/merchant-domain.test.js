@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const D = require('../public/assets/merchant-domain');
+const D = require('../../public/assets/merchant-domain');
 function fixture() {
   const s=D.initial();s.rosterMode='legacy-auto';
   s.customers=[{id:'c',name:'测试客户',restrictions:[],allergies:[]}];
