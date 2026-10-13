@@ -2,7 +2,15 @@
   'use strict';
   const D = window.MealDomain, $ = selector => document.querySelector(selector);
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-  const uid = prefix => `${prefix}_${crypto.randomUUID()}`;
+  const uid = prefix => {
+    if (typeof crypto.randomUUID === 'function') return `${prefix}_${crypto.randomUUID()}`;
+    // getRandomValues also works on explicitly supported non-localhost HTTP pages.
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    const hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+    return `${prefix}_${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+  };
   const list = value => String(value || '').split(/[,，、\n]/).map(s => s.trim()).filter(Boolean);
   const localTime = value => value ? new Date(value).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}) : '历史导入';
   const mealName = m => m === 'lunch' ? '午餐' : '晚餐';
