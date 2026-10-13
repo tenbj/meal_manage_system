@@ -6,11 +6,12 @@ const {config}=require('./config');
 const wrap=fn=>(req,res,next)=>Promise.resolve(fn(req,res,next)).catch(next);
 function installAuth(app){
  const origins=require('./origin-policy').createOriginPolicy();
+ const requestOrigin=req=>origins.requestOrigin({origin:req.get('origin'),host:req.get('host'),secure:req.socket.encrypted===true,referer:req.get('referer')});
  const cookie=(req,value)=>`meal_session_${origins.secure(req.get('origin'))?'https':'http'}=${value}; Path=/; HttpOnly; SameSite=Strict${origins.secure(req.get('origin'))?'; Secure':''}`;
  const cookieToken=req=>{
   const values=new Map((req.headers.cookie||'').split(';').map(x=>{const p=x.trim().indexOf('=');return [x.trim().slice(0,p),x.trim().slice(p+1)];}));
-  const names=req.get('origin')?.startsWith('http:')?['meal_session_http','meal_session_https']:['meal_session_https','meal_session_http'];
-  return names.map(name=>values.get(name)).find(Boolean)||'';
+  const origin=requestOrigin(req);if(!origin)return '';
+  return values.get(origins.secure(origin)?'meal_session_https':'meal_session_http')||'';
  };
  const safeUser=u=>({id:u.id,username:u.username,displayName:u.display_name});
  const counters=new Map();
@@ -47,11 +48,11 @@ function installAuth(app){
  }));
  app.use(wrap(async(req,res,next)=>{
   if(['/health/live','/health/ready'].includes(req.path))return next();
+  if(req.get('origin')&&!origins.allows(req.get('origin')))return res.status(403).json({message:'来源不匹配'});
   const bearer=/^Bearer (\S+)$/i.exec(req.get('authorization')||'')?.[1];let user;
   if(bearer){const [[row]]=await getPool().query('SELECT u.id,u.username,u.display_name,t.scope FROM app_tokens t JOIN app_users u ON u.id=t.owner_id WHERE t.token_hash=?',[digest(bearer)]);user=row;}
   else if(cookieToken(req)){const [[row]]=await getPool().query("SELECT u.id,u.username,u.display_name,'write' scope FROM app_sessions s JOIN app_users u ON u.id=s.owner_id WHERE s.token_hash=? AND s.expires_at>UTC_TIMESTAMP()",[digest(cookieToken(req))]);user=row;req.browserSession=!!row;}
   if(!user)return req.path.startsWith('/api/')||req.path.startsWith('/auth/')||req.path==='/mcp'?res.status(401).json({message:'请先登录'}):res.redirect('/login');
-  if(req.get('origin')&&!origins.allows(req.get('origin')))return res.status(403).json({message:'来源不匹配'});
   if(req.browserSession&&!['GET','HEAD','OPTIONS'].includes(req.method)&&!origins.allows(req.get('origin')))return res.status(403).json({message:'来源不匹配'});
   if(user.scope==='read'&&!['GET','HEAD','OPTIONS'].includes(req.method)&&req.path!=='/mcp')return res.status(403).json({message:'只读凭据不能写入'});
   req.user=safeUser(user);req.access=user.scope;res.set('Cache-Control','no-store');

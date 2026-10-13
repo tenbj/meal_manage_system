@@ -61,3 +61,5 @@ PUBLIC_URL 是主入口，ADDITIONAL_PUBLIC_URLS 是逗号分隔的额外可信�
 
 登录、注册、退出、改密和浏览器API/MCP写请求均验证明确的可信来源；不信任任意Host或转发头。HTTPS入口的会话Cookie带Secure，HTTP入口不带Secure，二者都保留HttpOnly及SameSite=Strict。不同域名分别登录、共享同一账号数据；会话按浏览器入口单独建立。不能仅切换PUBLIC_URL就宣称原HTTP入口兼容。
 HTTP/HTTPS分别使用meal_session_http与meal_session_https，避免同一浏览器的Secure同名Cookie保护导致HTTP登录循环。两个Cookie都不设置Domain。旧meal_session不再作为登录凭据读取，升级后旧浏览器会话需重新登录。
+
+会话读取仅使用当前入口的协议 Cookie，不向另一协议回退。浏览器首次导航或 no-referrer 请求，使用配置中唯一匹配的 Host（含端口）识别；实际 TLS 与同入口 Referer 可提供明确协议依据。请保留反向代理的原始 Host；若两个协议被折叠为相同 Host 且代理抹掉协议证据，不能据此声称独立会话已支持。不会信任任意转发头或强制 HTTP 跳转 HTTPS。

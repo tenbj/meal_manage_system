@@ -137,9 +137,9 @@
     "architecture": {
       "skill": "D04",
       "path": "docs/diagrams/architecture.html",
-      "sha256": "c622282cc1d2920b7441575bc95af96643e96bfae0a639ed57656c7384437b0b",
+      "sha256": "8be0e364e9a223fe290f848b39ac3e31d298bf7974591c399c9f22cc13a0f507",
       "maintenance": "updated",
-      "change_note": "根据当前账号隔离、HTTP/HTTPS双入口和Docker源码核对；浏览器与容器验收待本轮完成。",
+      "change_note": "新增按入口选择独立HTTP/HTTPS会话，修复跨协议Cookie回退；真实浏览器验收待本轮完成。",
       "sources": [
         {
           "path": "src/app.js",
@@ -147,7 +147,7 @@
         },
         {
           "path": "src/auth.js",
-          "sha256": "71484bfb15994e1e57c61f86005ab2349cf0979ed973c293a748b6170a0fdf93"
+          "sha256": "bb61a2a00d7741c970daf9b98c0467503413d7cbae4b6f1ab0b19f626b7aa7ae"
         },
         {
           "path": "src/accounts.js",
@@ -164,6 +164,10 @@
         {
           "path": "compose.database.yaml",
           "sha256": "036bf2b462be10d898c1d629198904f423cae738f58b5b11d7a300e5d3d87198"
+        },
+        {
+          "path": "src/origin-policy.js",
+          "sha256": "379e31baece013eec0763718e6baecdfc3a43256439c31b48ad8cf85c9efd4c7"
         }
       ]
     },

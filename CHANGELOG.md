@@ -9,7 +9,7 @@
 - 薄荷配置：连接密钥保存到数据库，按账号隔离；校验成功后替换、并发冲突保护。
 - 账号：自行注册、密码登录、改密码、会话撤销、个人 API / MCP 凭据；历史数据归 test，新账号空白工作台。
 - HTTP业务修复：普通HTTP页面不支持randomUUID时使用getRandomValues生成UUID，新增客户及其他记录正常。
-- 双入口：HTTP 与 HTTPS 来源白名单、不同 Cookie 名、HTTPS Secure Cookie，两个入口共享数据并独立登录。
+- 双入口：HTTP 与 HTTPS 来源白名单、不同 Cookie 名、HTTPS Secure Cookie，两个入口共享数据并独立登录。修复读取或退出时借用另一协议 Cookie 的问题；无 Referer 时按已配置的唯一入口 Host（含端口）识别，不强制 HTTP 跳转 HTTPS。
 - 交付治理：保留现有业务回归测试，测试集中 tests；移除历史一次性实现/生产切换/清理脚本，撤下旧样例覆盖入口；更新双图、API文档、验收合同和脱敏发布包。
 
 
