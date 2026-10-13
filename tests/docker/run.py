@@ -28,7 +28,8 @@ cfg={'DB_HOST':'db','DB_PORT':'3306','DB_NAME':'meal_release_test','DB_USER':'me
 cfg['PUBLIC_URL']='http://127.0.0.1:'+cfg['APP_PORT'];tls_port=free_port();cfg['ADDITIONAL_PUBLIC_URLS']='https://127.0.0.1:'+str(tls_port)
 env=work/'test.env';env.write_text('\n'.join(k+'='+v for k,v in cfg.items()),encoding='utf8')
 oldenv=work/'old.env';oldenv.write_text('\n'.join(k+'='+(a.baseline_image if k=='MEAL_IMAGE' else v) for k,v in cfg.items()),encoding='utf8')
-limits=work/'limits.yaml';limits.write_text('services:\n  db:\n    mem_limit: 512m\n    command: ["--performance-schema=OFF", "--innodb-buffer-pool-size=32M", "--max-connections=30"]\n',encoding='utf8')
+app_limits=work/'app-limits.yaml';app_limits.write_text('services:\n  app:\n    restart: "no"\n    mem_limit: 512m\n    cpus: 0.5\n',encoding='utf8')
+limits=work/'limits.yaml';limits.write_text('services:\n  db:\n    restart: "no"\n    mem_limit: 512m\n    cpus: 0.5\n    command: ["--performance-schema=OFF", "--innodb-buffer-pool-size=32M", "--max-connections=30"]\n',encoding='utf8')
 ctx={'project':project,'config':cfg};(work/'run.json').write_text(json.dumps(ctx),encoding='utf8')
 report={'passed':False,'environment':'isolated','run_id':secrets.token_hex(12),'started_at':now(),'compose_project':project,'mcp_mode':'embedded','checks':[],'private_run':work.name};proxy=None
 contract=json.loads((ROOT/'project-contract.json').read_text(encoding='utf8'))
@@ -47,7 +48,7 @@ def save(): (work/'report.json').write_text(json.dumps(report,ensure_ascii=False
 def check(name,*observations):report['checks'].append({'name':name,'status':'passed','observations':list(observations)});save();print(name+' passed',flush=True)
 def compose(*args,old=False,input=None,timeout=300,app_only=False):
  assert project.startswith('h02test-meal-') and cfg['DB_NAME']=='meal_release_test' and cfg['DB_HOST']=='db'
- files=['-f','compose.yaml'] if app_only else ['-f','compose.yaml','-f','compose.database.yaml','-f',str(limits)]
+ files=['-f','compose.yaml','-f',str(app_limits)] if app_only else ['-f','compose.yaml','-f','compose.database.yaml','-f',str(limits),'-f',str(app_limits)]
  return run(['docker','compose','-p',project,'--env-file',str(oldenv if old else env),*files,*args],input,timeout)
 def sql(statement):return compose('exec','-T','db','sh','-c','MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot --batch --skip-column-names',input=statement.encode())
 def node(code):return compose('exec','-T','app','node','-e',code)
@@ -59,10 +60,10 @@ def http(path,method='GET',body=None):
 fingerprint="const c=require('crypto'),db=require('./src/db');(async()=>{const out={};for(const t of ['app_users','app_sessions','app_tokens','merchant_workspace','merchant_integrations','api_requests','customers','orders','dishes','recipes','daily_out','feedbacks','labels','deliveries','posters']){const [rows]=await db.getPool().query('SELECT * FROM `'+t+'`');out[t]=c.createHash('sha256').update(JSON.stringify(rows.map(x=>JSON.stringify(x)).sort())).digest('hex')}console.log(JSON.stringify(out));await db.closePool()})().catch(()=>process.exit(1));"
 try:
  save();print('Preparing '+project,flush=True)
- for cid in run(['docker','ps','-q']).decode().split():
+ for cid in run(['docker','ps','-aq']).decode().split():
   d=json.loads(run(['docker','inspect',cid]))[0]
   if d.get('Config',{}).get('Labels',{}).get('com.docker.compose.project') in a.peer_project:continue
-  existing[cid]=(d['Image'],d['State']['StartedAt'],d['RestartCount'])
+  existing[cid]={'name':d['Name'],'image':d['Image'],'started_at':d['State']['StartedAt'],'restart_count':d['RestartCount'],'status':d['State']['Status']}
  compose('config','--quiet');compose('config','--quiet',app_only=True);check('compose_config','Application + isolated MySQL + limits and app-only configuration parsed')
  run(['docker','build',* ([] if a.reuse_build_cache else ['--no-cache']),'-t',cfg['MEAL_IMAGE'],'.'],timeout=900)
  report['images']=[{'service':'app','id':run(['docker','image','inspect','--format','{{.Id}}',cfg['MEAL_IMAGE']]).decode().strip()},{'service':'db','id':run(['docker','image','inspect','--format','{{.Id}}','mysql:8.4']).decode().strip()}];check('build','Target build from release working tree; cache='+str(a.reuse_build_cache))
@@ -74,6 +75,9 @@ try:
  compose('stop','app');backup=compose('exec','-T','db','sh','-c','MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump -uroot --single-transaction --set-gtid-purged=OFF "$MYSQL_DATABASE"');(work/'before.sql').write_bytes(backup)
  for _ in range(2):compose('run','--rm','--no-deps','app','node','scripts/migrate.js')
  compose('up','-d','--no-build','--wait','--wait-timeout','180','app');assert http('/api/merchant')[1]==baseline
+ for service in ['app','db']:
+  inspected=json.loads(run(['docker','inspect',project+'-'+service+'-1']))[0]['HostConfig']
+  assert inspected['RestartPolicy']['Name']=='no' and inspected['Memory']==512*1024*1024 and inspected['NanoCpus']==500000000
  assert http('/health/ready')[1]['version']==json.loads((ROOT/'package.json').read_text())['version'];check('startup','Target non-root application and isolated MySQL healthy');check('upgrade','Fresh 0.3 baseline synthetic workspace upgraded twice; exact revision and payload preserved under test')
  output=run(['node','tests/integration/accounts.cjs',str(work/'run.json')]);check('api','Real two-user API isolation, concurrent reads, legacy tables, idempotency and version conflicts');check('mcp','Real SDK handshake/list13/read/write, scopes and owner isolation');check('auth','Registration/login/password/session/token revocation and untrusted origin rejection')
  # Local TLS proxy verifies real browser HTTPS without installing trust or touching cloud configuration.
@@ -113,14 +117,27 @@ try:
 except Exception as e:
  report['error']=str(e);save();print('Acceptance failed; private diagnostic retained',flush=True)
 finally:
+ if proxy:
+  try:
+   proxy.terminate()
+   try:proxy.wait(timeout=15)
+   except subprocess.TimeoutExpired:proxy.kill();proxy.wait(timeout=5)
+  except Exception as e:report['proxy_cleanup_error']=str(e)
  try:
-  if proxy:proxy.terminate();proxy.wait(timeout=15)
   if report.get('runtime_passed') or not a.keep_on_failure:
    compose('down','--volumes','--remove-orphans',timeout=300)
+   assert not run(['docker','ps','-aq','--filter','label=com.docker.compose.project='+project]).strip(),'Test containers remain after cleanup'
+   changes=[]
    for cid,expected in existing.items():
-    d=json.loads(run(['docker','inspect',cid]))[0];assert (d['Image'],d['State']['StartedAt'],d['RestartCount'])==expected
+    try:
+     d=json.loads(run(['docker','inspect',cid]))[0];actual={'name':d['Name'],'image':d['Image'],'started_at':d['State']['StartedAt'],'restart_count':d['RestartCount'],'status':d['State']['Status']}
+    except Exception:actual={'missing_or_unreadable':True}
+    if actual!=expected:changes.append({'id':cid,'before':expected,'after':actual})
+   report['preexisting_container_changes']=changes;save()
+   assert not changes,'Pre-existing container state changed; full private differences require independent review'
+   assert not report.get('proxy_cleanup_error'),'Local TLS proxy cleanup incomplete'
    check('cleanup','Removed only '+project+' resources; every pre-existing container image/start/restart count unchanged')
  except Exception as e:
   report['cleanup_error']=str(e);print('Cleanup incomplete; original failure and private diagnostic retained',flush=True)
  report['finished_at']=now();save();print(str(work/'report.json'),flush=True)
-if report.get('error') or report.get('cleanup_error'):raise SystemExit(1)
+if report.get('error') or report.get('cleanup_error') or report.get('proxy_cleanup_error'):raise SystemExit(1)
