@@ -18,8 +18,8 @@ def main():
  scan=ROOT/'verification/release-scan.json'
  if scan not in files:files.append(scan)
  report={'passed':True,'files':len(files),'archive':'dist/'+target.name,'content_manifest_sha256':hashlib.sha256(json.dumps(manifest,sort_keys=True).encode()).hexdigest(),'scope':'Explicit public paths; no private configuration, runtime, backups, dependencies or image archives; credential pattern scan. Full new-commit/known-secret audit recorded separately.'}
- scan.write_text(json.dumps(report,indent=2),encoding='utf8')
+ scan.write_text(json.dumps(report,indent=2),encoding='utf8',newline='\n')
  with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as z:
   for p in files:z.write(p,p.relative_to(ROOT).as_posix())
- digest=hashlib.sha256(target.read_bytes()).hexdigest();target.with_suffix('.zip.sha256').write_text(digest+'  '+target.name+'\n',encoding='ascii');print(json.dumps({'archive':str(target),'sha256':digest,'files':len(files)}))
+ digest=hashlib.sha256(target.read_bytes()).hexdigest();target.with_suffix('.zip.sha256').write_text(digest+'  '+target.name+'\n',encoding='ascii',newline='\n');print(json.dumps({'archive':str(target),'sha256':digest,'files':len(files)}))
 if __name__=='__main__':main()
