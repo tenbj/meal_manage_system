@@ -3,7 +3,7 @@ const { setupSchema } = require("./schema");
 const { createApp } = require("./app");
 
 async function main() {
-  if(process.env.AUTO_MIGRATE!=='false') {await setupSchema();await require('./operations').setupOperations();}
+  if(process.env.AUTO_MIGRATE!=='false') {await setupSchema();await require('./operations').setupOperations();await require('./integrations').setupIntegrations();}
   const app = createApp();
   const server=app.listen(config.port,'0.0.0.0', async () => {
     await fetch(`http://127.0.0.1:${config.port}/api/merchant`,{headers:{Authorization:`Bearer ${process.env.APP_ACCESS_TOKEN||''}`}});

@@ -29,11 +29,15 @@ function createMerchantRouter(repository, options = {}) {
   router.get('/nutrition/status',async(req,res)=>{try{res.json(await boohee.status());}catch(e){providerError(res,e);}});
   router.post('/nutrition/connect',async(req,res)=>{
     const address=req.socket.remoteAddress;
-    if(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(address)||req.get('origin')&&req.get('origin')!==`http://${req.get('host')}`)return res.status(403).json({message:'请在本机系统页面配置连接'});
-    try{res.json(await boohee.connect(req.body.apiKey));}catch(e){providerError(res,e);}
+    if(req.access!=='write'&&(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(address)||req.get('origin')&&req.get('origin')!==`http://${req.get('host')}`))return res.status(403).json({message:'请在已认证的系统页面配置连接'});
+    try{res.json(await boohee.connect(req.body.apiKey,req.body.expectedVersion));}catch(e){providerError(res,e);}
+  });
+  router.post('/nutrition/migrate-legacy',async(req,res)=>{
+    if(req.access!=='write')return res.status(403).json({message:'需要已认证的写入权限迁移连接配置'});
+    try{res.json(await boohee.migrateLegacy());}catch(e){providerError(res,e);}
   });
   router.post('/nutrition/check',async(req,res)=>{
-    if(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress)||req.get('origin')&&req.get('origin')!==`http://${req.get('host')}`)return res.status(403).json({message:'请在本机系统页面检测连接'});
+    if(req.access!=='write'&&(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress)||req.get('origin')&&req.get('origin')!==`http://${req.get('host')}`))return res.status(403).json({message:'请在已认证的系统页面检测连接'});
     try{res.json(await boohee.check());}catch(e){providerError(res,e);}
   });
   router.get('/nutrition/search',async(req,res)=>{

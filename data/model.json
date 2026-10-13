@@ -755,6 +755,37 @@
       ]
     },
     {
+      "id": "merchant_integrations",
+      "short": "MI",
+      "label": "私密商家连接配置",
+      "fields": [
+        {
+          "name": "provider",
+          "definition": "VARCHAR(40) PRIMARY KEY",
+          "pk": true,
+          "nullable": false
+        },
+        {
+          "name": "credential",
+          "definition": "TEXT NOT NULL",
+          "pk": false,
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "definition": "INT NOT NULL",
+          "pk": false,
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+          "pk": false,
+          "nullable": true
+        }
+      ]
+    },
+    {
       "id": "merchant_workspace",
       "short": "MW",
       "label": "当前商家工作台",
