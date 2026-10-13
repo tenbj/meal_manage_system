@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "environment": "isolated_docker_mysql",
+  "source_commit": "59b58e87b432e4e5f202a66d452c000e5dcd03ed",
+  "actor": "root independent reviewer",
+  "tool_count": 13,
+  "task_selection": "Read live MCP catalog, selected synthetic pickup customer creation followed by workspace read-back",
+  "tools": [
+    "get_workspace",
+    "create_customer",
+    "get_workspace"
+  ],
+  "revision_before": 3,
+  "revision_after": 4,
+  "customer_count_before": 2,
+  "customer_count_after": 3,
+  "created_id": "113ed657-4451-479b-a93b-e66d0fe4837e",
+  "readback_id_match": true,
+  "readback_name_match": true,
+  "readback_fulfillment": "pickup",
+  "production_touched": false,
+  "delivery_id": "a00d2c18-4bca-4628-b887-d4c1df2a587c",
+  "run_id": "e0618766f82efec125c6ed9b",
+  "passed": true
+}

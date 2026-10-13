@@ -1,0 +1,781 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "餐食管理 API",
+    "version": "0.4.1"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": []
+    },
+    {
+      "CookieSessionHTTP": []
+    },
+    {
+      "CookieSessionHTTPS": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "CookieSessionHTTP": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "meal_session_http"
+      },
+      "CookieSessionHTTPS": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "meal_session_https"
+      }
+    }
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "读取系统状态",
+        "operationId": "get_system_status",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/merchant": {
+      "get": {
+        "summary": "读取商家工作台",
+        "operationId": "get_workspace",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/customers": {
+      "post": {
+        "summary": "新增客户",
+        "operationId": "create_customer",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/orders": {
+      "post": {
+        "summary": "登记购买餐次",
+        "operationId": "create_order",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/dishes": {
+      "post": {
+        "summary": "新增有依据的菜品",
+        "operationId": "create_dish",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/menus": {
+      "post": {
+        "summary": "设置本餐菜单",
+        "operationId": "set_menu",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/menus/confirm": {
+      "post": {
+        "summary": "确认菜单",
+        "operationId": "confirm_menu",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/diners": {
+      "post": {
+        "summary": "安排用餐人",
+        "operationId": "add_diner",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/diners/confirm": {
+      "post": {
+        "summary": "确认用餐与标签条件",
+        "operationId": "confirm_roster",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/boxes/finish": {
+      "post": {
+        "summary": "完成出餐并扣餐",
+        "operationId": "finish_boxes",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/boxes/cancel": {
+      "post": {
+        "summary": "取消用餐并记录原因",
+        "operationId": "cancel_box",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/boxes/resume": {
+      "post": {
+        "summary": "恢复已取消或暂停的用餐",
+        "operationId": "resume_box",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/credits": {
+      "post": {
+        "summary": "追加餐次调整流水",
+        "operationId": "adjust_credits",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/merchant/nutrition/status": {
+      "get": {
+        "summary": "读取薄荷连接状态",
+        "operationId": "nutrition_status",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/merchant/nutrition/connect": {
+      "post": {
+        "summary": "验证并保存薄荷连接",
+        "operationId": "nutrition_connect",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/merchant/nutrition/check": {
+      "post": {
+        "summary": "检测已保存的薄荷连接",
+        "operationId": "nutrition_check",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/api/merchant/nutrition/migrate-legacy": {
+      "post": {
+        "summary": "显式迁移旧薄荷连接",
+        "operationId": "nutrition_migrate",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "权限不足"
+          },
+          "409": {
+            "description": "版本或幂等冲突"
+          },
+          "422": {
+            "description": "业务规则不满足"
+          },
+          "503": {
+            "description": "依赖不可用"
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "summary": "自行注册",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "201": {
+            "description": "创建成功"
+          },
+          "401": {
+            "description": "请登录"
+          },
+          "403": {
+            "description": "来源或权限错误"
+          },
+          "409": {
+            "description": "用户名冲突"
+          },
+          "422": {
+            "description": "输入错误"
+          },
+          "429": {
+            "description": "过于频繁"
+          },
+          "503": {
+            "description": "服务不可用"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "账号密码登录",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "201": {
+            "description": "创建成功"
+          },
+          "401": {
+            "description": "请登录"
+          },
+          "403": {
+            "description": "来源或权限错误"
+          },
+          "409": {
+            "description": "用户名冲突"
+          },
+          "422": {
+            "description": "输入错误"
+          },
+          "429": {
+            "description": "过于频繁"
+          },
+          "503": {
+            "description": "服务不可用"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "退出登录",
+        "security": [
+          {
+            "CookieSessionHTTP": []
+          },
+          {
+            "CookieSessionHTTPS": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "201": {
+            "description": "创建成功"
+          },
+          "401": {
+            "description": "请登录"
+          },
+          "403": {
+            "description": "来源或权限错误"
+          },
+          "409": {
+            "description": "用户名冲突"
+          },
+          "422": {
+            "description": "输入错误"
+          },
+          "429": {
+            "description": "过于频繁"
+          },
+          "503": {
+            "description": "服务不可用"
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "读取当前账号",
+        "security": [
+          {
+            "CookieSessionHTTP": []
+          },
+          {
+            "CookieSessionHTTPS": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "201": {
+            "description": "创建成功"
+          },
+          "401": {
+            "description": "请登录"
+          },
+          "403": {
+            "description": "来源或权限错误"
+          },
+          "409": {
+            "description": "用户名冲突"
+          },
+          "422": {
+            "description": "输入错误"
+          },
+          "429": {
+            "description": "过于频繁"
+          },
+          "503": {
+            "description": "服务不可用"
+          }
+        }
+      }
+    },
+    "/auth/password": {
+      "post": {
+        "summary": "修改自己的密码",
+        "security": [
+          {
+            "CookieSessionHTTP": []
+          },
+          {
+            "CookieSessionHTTPS": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "201": {
+            "description": "创建成功"
+          },
+          "401": {
+            "description": "请登录"
+          },
+          "403": {
+            "description": "来源或权限错误"
+          },
+          "409": {
+            "description": "用户名冲突"
+          },
+          "422": {
+            "description": "输入错误"
+          },
+          "429": {
+            "description": "过于频繁"
+          },
+          "503": {
+            "description": "服务不可用"
+          }
+        }
+      }
+    },
+    "/auth/tokens": {
+      "get": {
+        "summary": "列出自己的接入凭据",
+        "security": [
+          {
+            "CookieSessionHTTP": []
+          },
+          {
+            "CookieSessionHTTPS": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "201": {
+            "description": "创建成功"
+          },
+          "401": {
+            "description": "请登录"
+          },
+          "403": {
+            "description": "来源或权限错误"
+          },
+          "409": {
+            "description": "用户名冲突"
+          },
+          "422": {
+            "description": "输入错误"
+          },
+          "429": {
+            "description": "过于频繁"
+          },
+          "503": {
+            "description": "服务不可用"
+          }
+        }
+      },
+      "post": {
+        "summary": "创建个人接入凭据",
+        "security": [
+          {
+            "CookieSessionHTTP": []
+          },
+          {
+            "CookieSessionHTTPS": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "201": {
+            "description": "创建成功"
+          },
+          "401": {
+            "description": "请登录"
+          },
+          "403": {
+            "description": "来源或权限错误"
+          },
+          "409": {
+            "description": "用户名冲突"
+          },
+          "422": {
+            "description": "输入错误"
+          },
+          "429": {
+            "description": "过于频繁"
+          },
+          "503": {
+            "description": "服务不可用"
+          }
+        }
+      }
+    },
+    "/auth/tokens/{id}": {
+      "delete": {
+        "summary": "撤销自己的接入凭据",
+        "security": [
+          {
+            "CookieSessionHTTP": []
+          },
+          {
+            "CookieSessionHTTPS": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "201": {
+            "description": "创建成功"
+          },
+          "401": {
+            "description": "请登录"
+          },
+          "403": {
+            "description": "来源或权限错误"
+          },
+          "409": {
+            "description": "用户名冲突"
+          },
+          "422": {
+            "description": "输入错误"
+          },
+          "429": {
+            "description": "过于频繁"
+          },
+          "503": {
+            "description": "服务不可用"
+          }
+        }
+      }
+    }
+  }
+}

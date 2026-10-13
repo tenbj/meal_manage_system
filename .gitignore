@@ -7,3 +7,12 @@ tmp/
 logs/
 *.log
 .runtime/
+
+verification/private/
+dist/
+*.tar
+*.sql.gz
+tmp-*
+__pycache__/
+
+.test-runs/

@@ -17,6 +17,7 @@ const config = {
 };
 
 function assertConfig() {
+  if(!/^[A-Za-z0-9_]{1,64}$/.test(config.db.database))throw new Error('DB_NAME 必须为 1–64 位字母数字或下划线');
   const missing = [];
   if (!config.db.host) missing.push("DB_HOST");
   if (!config.db.user) missing.push("DB_USER");

@@ -1,3 +1,4 @@
+const {ownerId}=require('./identity');
 const { getPool } = require("./db");
 
 function safeArray(value) {
@@ -50,15 +51,15 @@ async function readState() {
     [deliveries],
     [posters],
   ] = await Promise.all([
-    pool.query("SELECT * FROM customers ORDER BY created_at, id"),
-    pool.query("SELECT * FROM `orders` ORDER BY start_date, id"),
-    pool.query("SELECT * FROM dishes ORDER BY category, name, id"),
-    pool.query("SELECT * FROM recipes ORDER BY recipe_date, id"),
-    pool.query("SELECT * FROM daily_out ORDER BY out_date, meal, id"),
-    pool.query("SELECT * FROM feedbacks ORDER BY feedback_date DESC, id"),
-    pool.query("SELECT * FROM labels ORDER BY label_date, meal, id"),
-    pool.query("SELECT * FROM deliveries ORDER BY delivery_date, meal, id"),
-    pool.query("SELECT * FROM posters ORDER BY generated_at DESC, id"),
+    pool.query("SELECT * FROM customers WHERE owner_id=? ORDER BY created_at, id",[ownerId()]),
+    pool.query("SELECT * FROM `orders` WHERE owner_id=? ORDER BY start_date, id",[ownerId()]),
+    pool.query("SELECT * FROM dishes WHERE owner_id=? ORDER BY category, name, id",[ownerId()]),
+    pool.query("SELECT * FROM recipes WHERE owner_id=? ORDER BY recipe_date, id",[ownerId()]),
+    pool.query("SELECT * FROM daily_out WHERE owner_id=? ORDER BY out_date, meal, id",[ownerId()]),
+    pool.query("SELECT * FROM feedbacks WHERE owner_id=? ORDER BY feedback_date DESC, id",[ownerId()]),
+    pool.query("SELECT * FROM labels WHERE owner_id=? ORDER BY label_date, meal, id",[ownerId()]),
+    pool.query("SELECT * FROM deliveries WHERE owner_id=? ORDER BY delivery_date, meal, id",[ownerId()]),
+    pool.query("SELECT * FROM posters WHERE owner_id=? ORDER BY generated_at DESC, id",[ownerId()]),
   ]);
 
   return {
@@ -82,7 +83,7 @@ async function writeState(rawState) {
   try {
     await connection.beginTransaction();
     for (const table of ["posters", "deliveries", "labels", "feedbacks", "daily_out", "recipes", "dishes", "orders", "customers"]) {
-      await connection.query(`DELETE FROM ${table === "orders" ? "`orders`" : table}`);
+      await connection.query(`DELETE FROM ${table === "orders" ? "`orders`" : table} WHERE owner_id=?`,[ownerId()]);
     }
 
     for (const customer of state.customers) await insertCustomer(connection, customer);
@@ -179,7 +180,7 @@ async function countRows() {
   const tables = ["customers", "orders", "dishes", "recipes", "daily_out", "feedbacks", "labels", "deliveries", "posters"];
   const output = {};
   for (const table of tables) {
-    const [rows] = await pool.query(`SELECT COUNT(*) AS count FROM ${table === "orders" ? "`orders`" : table}`);
+    const [rows] = await pool.query(`SELECT COUNT(*) AS count FROM ${table === "orders" ? "`orders`" : table} WHERE owner_id=?`,[ownerId()]);
     output[table] = Number(rows[0].count || 0);
   }
   return output;
@@ -294,9 +295,9 @@ async function insertCustomer(connection, item) {
   if (!item?.id) return;
   await connection.query(
     `INSERT INTO customers
-      (id, name, nickname, phone, gender, age, height, current_weight, target_weight, activity, pace, address, restrictions, dislikes, allergies, notes, weight_records)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
+      (owner_id, id, name, nickname, phone, gender, age, height, current_weight, target_weight, activity, pace, address, restrictions, dislikes, allergies, notes, weight_records)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [ownerId(), 
       item.id,
       item.name || "",
       item.nickname || "",
@@ -322,9 +323,9 @@ async function insertOrder(connection, item) {
   if (!item?.id) return;
   await connection.query(
     `INSERT INTO \`orders\`
-      (id, order_no, customer_id, service_type, start_date, end_date, price, status, paid_status, is_repurchase, notes, completion_rate, total_meal_credits, pause_rule, weight_records)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
+      (owner_id, id, order_no, customer_id, service_type, start_date, end_date, price, status, paid_status, is_repurchase, notes, completion_rate, total_meal_credits, pause_rule, weight_records)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [ownerId(), 
       item.id,
       item.orderNo || item.id,
       item.customerId || "",
@@ -348,9 +349,9 @@ async function insertDish(connection, item) {
   if (!item?.id) return;
   await connection.query(
     `INSERT INTO dishes
-      (id, name, category, ingredients, kcal100, protein, fat, carbs, source, garlic, conflicts, available, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
+      (owner_id, id, name, category, ingredients, kcal100, protein, fat, carbs, source, garlic, conflicts, available, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [ownerId(), 
       item.id,
       item.name || "",
       item.category || "",
@@ -371,9 +372,9 @@ async function insertDish(connection, item) {
 async function insertRecipe(connection, item) {
   if (!item?.id || !item.date) return;
   await connection.query(
-    `INSERT INTO recipes (id, recipe_date, meals, replacements, generated_at)
-      VALUES (?, ?, ?, ?, ?)`,
-    [item.id, item.date, json(item.meals || {}), json(safeArray(item.replacements)), item.generatedAt || ""]
+    `INSERT INTO recipes (owner_id, id, recipe_date, meals, replacements, generated_at)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+    [ownerId(), item.id, item.date, json(item.meals || {}), json(safeArray(item.replacements)), item.generatedAt || ""]
   );
 }
 
@@ -381,9 +382,9 @@ async function insertDailyOut(connection, item) {
   if (!item?.id || !item.date) return;
   await connection.query(
     `INSERT INTO daily_out
-      (id, out_date, meal, customer_id, items, paused, pause_policy, pause_reason, pause_updated_at, extension_order_id, replaced, needs_replacement, note, generated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
+      (owner_id, id, out_date, meal, customer_id, items, paused, pause_policy, pause_reason, pause_updated_at, extension_order_id, replaced, needs_replacement, note, generated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [ownerId(), 
       item.id,
       item.date,
       item.meal || "",
@@ -406,9 +407,9 @@ async function insertFeedback(connection, item) {
   if (!item?.id || !item.date) return;
   await connection.query(
     `INSERT INTO feedbacks
-      (id, feedback_date, customer_id, weight, lunch_finished, dinner_finished, satiety, dislike_dish, body_note, admin_note, processed)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
+      (owner_id, id, feedback_date, customer_id, weight, lunch_finished, dinner_finished, satiety, dislike_dish, body_note, admin_note, processed)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [ownerId(), 
       item.id,
       item.date,
       item.customerId || "",
@@ -427,7 +428,7 @@ async function insertFeedback(connection, item) {
 async function syncCustomerFeedback(connection, item) {
   if (!item?.customerId) return;
   const updates = {};
-  const [rows] = await connection.query("SELECT current_weight, dislikes, weight_records FROM customers WHERE id = ?", [item.customerId]);
+  const [rows] = await connection.query("SELECT current_weight, dislikes, weight_records FROM customers WHERE id = ? AND owner_id=?", [item.customerId,ownerId()]);
   const customer = rows[0];
   if (!customer) return;
 
@@ -451,15 +452,15 @@ async function syncCustomerFeedback(connection, item) {
   const entries = Object.entries(updates);
   if (!entries.length) return;
   const assignments = entries.map(([key]) => `${key} = ?`).join(", ");
-  await connection.query(`UPDATE customers SET ${assignments} WHERE id = ?`, [...entries.map(([, value]) => value), item.customerId]);
+  await connection.query(`UPDATE customers SET ${assignments} WHERE id = ? AND owner_id=?`, [...entries.map(([, value]) => value), item.customerId,ownerId()]);
 }
 
 async function insertPayload(connection, table, dateColumn, secondaryColumn, dateValue, secondaryValue, customerId, payload) {
   if (!payload?.id) return;
   await connection.query(
-    `INSERT INTO ${table} (id, ${dateColumn}, ${secondaryColumn}, customer_id, payload)
-      VALUES (?, ?, ?, ?, ?)`,
-    [payload.id, dateValue || null, secondaryValue || "", customerId || "", json(payload)]
+    `INSERT INTO ${table} (owner_id, id, ${dateColumn}, ${secondaryColumn}, customer_id, payload)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+    [ownerId(), payload.id, dateValue || null, secondaryValue || "", customerId || "", json(payload)]
   );
 }
 

@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "delivery_id": "a00d2c18-4bca-4628-b887-d4c1df2a587c",
+  "tested_at": "2026-10-13T14:37:55.026244+00:00",
+  "checks": [
+    "85 tests passed; 0 failed; 0 skipped"
+  ],
+  "scope": "Synthetic isolated unit tests, including no-referrer HTTP/HTTPS identity and logout isolation; no production database or Docker",
+  "log_sha256": "70e3aff8474bcaadfe18bcb37e8dc141eb918b0090e315559fb5bb6b862de30d"
+}

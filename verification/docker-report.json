@@ -1,0 +1,473 @@
+{
+  "passed": true,
+  "environment": "isolated",
+  "run_id": "e0618766f82efec125c6ed9b",
+  "started_at": "2026-10-13T15:17:29.882587+00:00",
+  "compose_project": "h02test-meal-4a0daf882263",
+  "mcp_mode": "embedded",
+  "checks": [
+    {
+      "name": "compose_config",
+      "status": "passed",
+      "observations": [
+        "Application + isolated MySQL + limits and app-only configuration parsed"
+      ]
+    },
+    {
+      "name": "build",
+      "status": "passed",
+      "observations": [
+        "Target build from release working tree; cache=True"
+      ]
+    },
+    {
+      "name": "startup",
+      "status": "passed",
+      "observations": [
+        "Target non-root application and isolated MySQL healthy"
+      ]
+    },
+    {
+      "name": "upgrade",
+      "status": "passed",
+      "observations": [
+        "Fresh 0.3 baseline synthetic workspace upgraded twice; exact revision and payload preserved under test"
+      ]
+    },
+    {
+      "name": "api",
+      "status": "passed",
+      "observations": [
+        "Real two-user API isolation, concurrent reads, legacy tables, idempotency and version conflicts"
+      ]
+    },
+    {
+      "name": "mcp",
+      "status": "passed",
+      "observations": [
+        "Real SDK handshake/list13/read/write, scopes and owner isolation"
+      ]
+    },
+    {
+      "name": "auth",
+      "status": "passed",
+      "observations": [
+        "Registration/login/password/session/token revocation and untrusted origin rejection"
+      ]
+    },
+    {
+      "name": "diagrams",
+      "status": "passed",
+      "observations": [
+        "Container bytes match both published HTML; real browser ER toggle20/details/hide/show and offline pages passed; real HTTP/TLS login and mobile registration passed"
+      ]
+    },
+    {
+      "name": "recreate",
+      "status": "passed",
+      "observations": [
+        "Recreated app and database containers retained all 15 table hashes, per-user integration credentials and runtime file"
+      ]
+    },
+    {
+      "name": "backup_restore",
+      "status": "passed",
+      "observations": [
+        "Consistent dump restored into independent test database; all 15 hashes equal; same isolated MySQL instance"
+      ]
+    },
+    {
+      "name": "rollback",
+      "status": "passed",
+      "observations": [
+        "Old 0.3 image reads separate restored pre-account schema; upgraded database never rolled back"
+      ]
+    },
+    {
+      "name": "failure_recovery",
+      "status": "passed",
+      "observations": [
+        "Dependency outage gives 503, recovery reconnects without app restart; all table hashes retained"
+      ]
+    },
+    {
+      "name": "cleanup",
+      "status": "passed",
+      "observations": [
+        "Removed only h02test-meal-4a0daf882263 containers/volumes/networks; every pre-existing container image/start/restart count unchanged"
+      ]
+    },
+    {
+      "name": "secrets",
+      "status": "passed",
+      "observations": [
+        "Build allowlist excludes private/runtime/tests; image non-root config/history and all file layers scanned",
+        "Scanned bytes: 261657595"
+      ]
+    }
+  ],
+  "delivery_id": "a00d2c18-4bca-4628-b887-d4c1df2a587c",
+  "inputs": [
+    {
+      "path": ".dockerignore",
+      "sha256": "3ddb1b982706a98c53b883885eaeb78480618f5380704ce32a1327fa9002564e"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "9a8882f02195960a2de8ecf1b653a9eb21d80fe03b8ca81681b7aa12a3ff222f"
+    },
+    {
+      "path": "Dockerfile",
+      "sha256": "4f98fbf907640b69225fd806d167cb44e9b651f308ae78469d77c2172ef4d4aa"
+    },
+    {
+      "path": "compose.database.yaml",
+      "sha256": "036bf2b462be10d898c1d629198904f423cae738f58b5b11d7a300e5d3d87198"
+    },
+    {
+      "path": "compose.resources.yaml",
+      "sha256": "f78b19d6e97fef60d207a7cb2a87136f5cb2afe743bfad404b9fe65d32bcc768"
+    },
+    {
+      "path": "compose.yaml",
+      "sha256": "c45b33284ccb721aa701de2044e4b8e14df2b9885a98894ebeedd587b712ce9d"
+    },
+    {
+      "path": "data/model.json",
+      "sha256": "b59c6184de0de990a11e01efbc166ddfd73c8b6da5d4139627f77548895d64e0"
+    },
+    {
+      "path": "data/schema.sql",
+      "sha256": "ef51a8a99a526f4f8514e085601344ad8f85b6cf6f1f0a8fa562e01fdebb042c"
+    },
+    {
+      "path": "docs/AI接入与调用指南.md",
+      "sha256": "04d51a23415ad2357d6816e52ea734b5fd47fec316ba70f3eb55c72a95d7b942"
+    },
+    {
+      "path": "docs/API中文说明.html",
+      "sha256": "f092b93e9447d2cd61156e0f60706896c03dcc1dca09ab044db6f625781b0337"
+    },
+    {
+      "path": "docs/API中文说明.md",
+      "sha256": "5384f7338bf8764a9b1355eb7fff7eeb9f468db43bc90836cb92643bb08dc48f"
+    },
+    {
+      "path": "docs/Docker部署.md",
+      "sha256": "b41a915e8adf860864aa62d2c1f2fb5be5c8552dcbf286178d45688be8584026"
+    },
+    {
+      "path": "docs/MCP工具目录.json",
+      "sha256": "52a9210349b28c588a8ca32eac42602570c88a5172ee18d318eb9b6529c47cbe"
+    },
+    {
+      "path": "docs/deployment.md",
+      "sha256": "082bd0c8e96d51b7fe38a8f8c4627e8b0548f485c38c0071a268783d0432c60a"
+    },
+    {
+      "path": "docs/diagrams/architecture.html",
+      "sha256": "8be0e364e9a223fe290f848b39ac3e31d298bf7974591c399c9f22cc13a0f507"
+    },
+    {
+      "path": "docs/diagrams/erd.html",
+      "sha256": "e98dfacbfb34784a477444e1828e0edbe4cfbd86c1ca4968ddcc95a09a3ce74f"
+    },
+    {
+      "path": "docs/openapi.json",
+      "sha256": "05afffbc8d409e8b7bd6e6e6378b0b000e1c4b114d9bb4a2f72561db1e11e0f5"
+    },
+    {
+      "path": "docs/skill-data-api.md",
+      "sha256": "b4b2f87137ea0a87b1c1801332423f6bc25269d91c780ae49f2834419685d413"
+    },
+    {
+      "path": "docs/账号与数据隔离.md",
+      "sha256": "06f9164cd119064cc5943453e9d2af08f26670b280e962d325da55a34647dfd9"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "ddb485f252de98c494b5c7369912413a20e851d602284f5f3c6d9ff64037873d"
+    },
+    {
+      "path": "package.json",
+      "sha256": "9829a9b1c4d4917843a697aadca576a062ce455b84cb7e30343b21af9a3d749f"
+    },
+    {
+      "path": "public/assets/admin.css",
+      "sha256": "7087b8f6cb0efcef6c0c01dfae6a23258bc3cd79843ca85d669a37aa914e105a"
+    },
+    {
+      "path": "public/assets/admin.js",
+      "sha256": "01b158fda9ecb1f1577917eb90c50bc0d6399744dff712227c29f412d965ab87"
+    },
+    {
+      "path": "public/assets/merchant-domain.js",
+      "sha256": "ab13f63afc054e433acadffa0865a53d7882efe69ba42258fba9639195ee5dce"
+    },
+    {
+      "path": "public/assets/merchant.css",
+      "sha256": "691719d0f5757ae88cf046be6eef71319dd338de4e2d4c8c37c48b2a026b9dcd"
+    },
+    {
+      "path": "public/assets/merchant.js",
+      "sha256": "666f1f5f487988b90f540d617c6156e727b7eb215065d956c8d5f91582e2034d"
+    },
+    {
+      "path": "public/assets/session.js",
+      "sha256": "628af9e498d5eaf529c2553178063f862abc2b43378c367998b4a19fd4c385f3"
+    },
+    {
+      "path": "public/assets/wechat_qr_label.png",
+      "sha256": "5fe1facd11a631a3ab06ce7032bcb1db8b3a72d571483bd975462b6a74d44c9d"
+    },
+    {
+      "path": "public/index.html",
+      "sha256": "04d65de94d67e23b2047af664092f5c5261debf91c642a1302e285a09f9e1226"
+    },
+    {
+      "path": "public/login.html",
+      "sha256": "1f7c6117a1a8c8dcdc7de07ad5badeae5bed70643c71adf6099b454d8e192975"
+    },
+    {
+      "path": "scripts/migrate.js",
+      "sha256": "a3b98a99b4d92921e21a83e1b39e01f64b3a14a5c2ef764519122842453f1e0e"
+    },
+    {
+      "path": "src/accounts.js",
+      "sha256": "6aeb80252a7eb57fc5d28efa315ba715732782f90dcee01eaf8691dd6c0c820c"
+    },
+    {
+      "path": "src/ai-write-api.js",
+      "sha256": "de4aa45a499e6a810f1028925675bbeeb462bfdb603aa53cdd31cd8e2076f837"
+    },
+    {
+      "path": "src/app.js",
+      "sha256": "3cba8472d7087e6092b2e218e7cdee053117e43a568eabf31fde225c11c5324a"
+    },
+    {
+      "path": "src/auth.js",
+      "sha256": "bb61a2a00d7741c970daf9b98c0467503413d7cbae4b6f1ab0b19f626b7aa7ae"
+    },
+    {
+      "path": "src/boohee.js",
+      "sha256": "ce76a63374929892b123d6c50a7790caf294994627db41acf97bf03ab69f8dcf"
+    },
+    {
+      "path": "src/config.js",
+      "sha256": "e1586abe0dc512ec501d5ac7a8e64b9072257ec6079e6245ec458a8074b8af20"
+    },
+    {
+      "path": "src/db.js",
+      "sha256": "03ed71eb18e94e0f9199326aa353916a00d04275d6dd94f5e61e1ccb00267f16"
+    },
+    {
+      "path": "src/identity.js",
+      "sha256": "36312a80e99dd4ce61b78ba952ef3a3e6b738057094bb7b91df8ab7004ae9e63"
+    },
+    {
+      "path": "src/integrations.js",
+      "sha256": "ca683b847eb448ad0dd7e486b7228b006a1f747fea562c0821c816884a586a62"
+    },
+    {
+      "path": "src/legacy-import.js",
+      "sha256": "1a66279d91878de599bd52989ae627d5d37a8d2c0f2e6e8d0d38654079f2dbcc"
+    },
+    {
+      "path": "src/mcp.js",
+      "sha256": "26d83477247e1a09f579d87be833c54229837d3dcd7969227886e030b87722d8"
+    },
+    {
+      "path": "src/merchant.js",
+      "sha256": "9c4f2f9afa74d7d0427e47f18d04dc5d79e21d4b07f6df4aa3e1647e1fe9bf67"
+    },
+    {
+      "path": "src/operation-catalog.js",
+      "sha256": "7568a98bcc2e8c615c913e864b9f0636b0852e11367e38a327127d0efd7068fa"
+    },
+    {
+      "path": "src/operations.js",
+      "sha256": "e68de87ce1c92e0540f937e1683824c6d343812c0e732c0cd2047cbb779c05b5"
+    },
+    {
+      "path": "src/origin-policy.js",
+      "sha256": "379e31baece013eec0763718e6baecdfc3a43256439c31b48ad8cf85c9efd4c7"
+    },
+    {
+      "path": "src/repository.js",
+      "sha256": "f773886b5442accba1e1378321850eeee6dfcc33dd5c6da5cac38c02d73d60ab"
+    },
+    {
+      "path": "src/schema.js",
+      "sha256": "b182e165739a9f17795477d235d85fae70329984b86930738a6495abeacc0938"
+    },
+    {
+      "path": "src/server.js",
+      "sha256": "1e0884adb8b8ffb672980208070856a648c14d33e706701ce74b76b4db642ef0"
+    }
+  ],
+  "excluded_peer_projects": [],
+  "images": [
+    {
+      "service": "app",
+      "id": "sha256:765b2701436605640093ca366c1a183000b200727374288f4323430ebdd55caa"
+    },
+    {
+      "service": "db",
+      "id": "sha256:6ea90827b1100f8f2ae306a539f86d2c264a26ed435a2a9f75551dd5c3aeb242"
+    }
+  ],
+  "app_only_verified": true,
+  "runtime_passed": true,
+  "remaining_resources": {
+    "containers": [],
+    "volumes": [],
+    "networks": []
+  },
+  "preexisting_container_changes": [],
+  "finished_at": "2026-10-13T15:28:11.072397+00:00",
+  "preexisting_container_summary": {
+    "count": 33,
+    "all_unchanged": true,
+    "full_inventory_retained_privately": true
+  },
+  "source_commit": "59b58e87b432e4e5f202a66d452c000e5dcd03ed",
+  "test_inputs": [
+    {
+      "path": "tests/docker/run.py",
+      "sha256": "c39edb46de64ff190fada1c1701ade44fe99a42bc7a5f1f5bd9287e0124038f4"
+    },
+    {
+      "path": "tests/docker/scan_image.py",
+      "sha256": "84ca5d2da4c4bc78a7eb0ef1b25a5cad1701e0508e7706674e8f6bb6684c54cc"
+    },
+    {
+      "path": "tests/e2e/check-account-selectors.cjs",
+      "sha256": "d440a22ab9add0ddc6276148566833e2acdf1168070a021b833df1f4835e1295"
+    },
+    {
+      "path": "tests/e2e/check-dietary-ui.cjs",
+      "sha256": "000ba0a7bc6a47c25b3fbc6eced8e7c3a63df2cb3d773174d3e6895f6ea2e7fc"
+    },
+    {
+      "path": "tests/e2e/check-menu-picker.cjs",
+      "sha256": "a4a320a9e82d87e3debb75a376655bf677808b15f4a706fd2ca769afe524e243"
+    },
+    {
+      "path": "tests/e2e/check-merchant-operations.cjs",
+      "sha256": "f89a159e6d83e07d088dc690d0cd873f5942a13c85dd20cd1ce0a0c5b4d3b73e"
+    },
+    {
+      "path": "tests/e2e/run.cjs",
+      "sha256": "c9fbe41f262fb821772cc2a62e08745603d1c09239e87f04f3b40ed7502bf4e3"
+    },
+    {
+      "path": "tests/fixtures/README.md",
+      "sha256": "bac8ad2548f7dc7f2a62981a3393d1ab4d36afba37ff93465cdc019391a9daa7"
+    },
+    {
+      "path": "tests/integration/accounts.cjs",
+      "sha256": "f68e66cbfe600a8247e59f917a01e32d08bb3b0594d7344e571a3e1543586fb4"
+    },
+    {
+      "path": "tests/integration/browser.cjs",
+      "sha256": "31a5c4a724a7c3799323fc6114dd34ed4c63ec265bca6f85e299677211216a46"
+    },
+    {
+      "path": "tests/README.md",
+      "sha256": "927ecc0140690664737991461003646002f74defddb2fa0611b712d47818342e"
+    },
+    {
+      "path": "tests/support/browser-fixture.cjs",
+      "sha256": "38f85fd020c236b685e023e3bda8a2f21afeb2cc53563366ad9fbb109552f878"
+    },
+    {
+      "path": "tests/support/browser-flow.cjs",
+      "sha256": "d4e0d16961774a9adc47bd0f86cecf6667659cab0dfcbe2be842cb8427789292"
+    },
+    {
+      "path": "tests/support/context.cjs",
+      "sha256": "c5faa3e6843446127bd56d5049ab11e9c663a52cfc8bab3fb9f2b4f4a9e1594d"
+    },
+    {
+      "path": "tests/support/mcp-probe.cjs",
+      "sha256": "ae0f2bab1df06cfa15b4181adc5a3ca2e0ecc01015e2e0d6aa23bfbd1c55d520"
+    },
+    {
+      "path": "tests/support/process_runner.py",
+      "sha256": "7c8ae99e8ea18a06aef4c1df395a13f72d72c4cb42987fefd00327d56ca47450"
+    },
+    {
+      "path": "tests/support/tls-proxy.cjs",
+      "sha256": "f424c88b580d3f692526a68b630a6bbc8937e3c9ccd9c607df9c8de7921d38bd"
+    },
+    {
+      "path": "tests/unit/ai-write-api.test.js",
+      "sha256": "b7ff12e839e7afbf14a216c3b85c6f1e063c819e68ce24857abfd5aa926dfce4"
+    },
+    {
+      "path": "tests/unit/auth-dual-origin.test.js",
+      "sha256": "961494106253f66a3c46aa20372ae194245ac8838e383abec436435d8ab86563"
+    },
+    {
+      "path": "tests/unit/auth.test.js",
+      "sha256": "27553d551e0bdd7d5afc1fb100d5f66e25c2950fb672f81820f01fd1a7182276"
+    },
+    {
+      "path": "tests/unit/boohee.test.js",
+      "sha256": "69f37c31759a8b0df530715aee37dbab41841ea3e77302c29a97fb4642ffbb96"
+    },
+    {
+      "path": "tests/unit/client-ids.test.js",
+      "sha256": "ce98637fd48be4b31f5c8187de05a24a03860d73b70b047198e9d76ad1468adf"
+    },
+    {
+      "path": "tests/unit/docker_cleanup_test.py",
+      "sha256": "7673b0bf4b7a69fca8fa6f8737bf269e788250c8e5c929ba88c9e97b7f595d0e"
+    },
+    {
+      "path": "tests/unit/integrations.test.js",
+      "sha256": "a3adb99e98dc51b290755d2ee88ed0b102354b5f9413edcd6230bb102066086f"
+    },
+    {
+      "path": "tests/unit/merchant-api.test.js",
+      "sha256": "2b90cfe6de6c58317f58ced0be3347adf67b6f65cfca151cf5d9d52335b072a9"
+    },
+    {
+      "path": "tests/unit/merchant-dietary.test.js",
+      "sha256": "6d5112a0d7563a721e9c9b00874e4608f9541e904615ca6ee5bbbe3256ab8754"
+    },
+    {
+      "path": "tests/unit/merchant-domain.test.js",
+      "sha256": "bbcfbfcaecf1b4f33dd15058ebc0bfb795e0ba8a3cd0bd3678cc7352d0bd7f4d"
+    },
+    {
+      "path": "tests/unit/merchant-food-api.test.js",
+      "sha256": "f4c2800f84aaf8861ef39afb92b7c3fa9420e5ae226031b050bb1168ef17c3e4"
+    },
+    {
+      "path": "tests/unit/merchant-ledger.test.js",
+      "sha256": "87ca21a4809edba0d673a4c3b31a8db139cf03c3c82d63225f4508f34ddb6bd8"
+    },
+    {
+      "path": "tests/unit/merchant-portions.test.js",
+      "sha256": "3485f468bfb0ae3b296faf0094a1e52c88cbcc66b6c5adf0bfdae15d11d46af8"
+    },
+    {
+      "path": "tests/unit/operations.test.js",
+      "sha256": "286710a8510371cf76b2dcf497c61f33a29679626560651eda7674711e704857"
+    },
+    {
+      "path": "tests/unit/origin-policy.test.js",
+      "sha256": "bcdae317980f4aaa395035b78b7ba18b7622789364dfdd0aeb0a7d848a3a457a"
+    },
+    {
+      "path": "tests/unit/process_runner_test.py",
+      "sha256": "d1b380010c7655bdd9f72a771460e93f9a116d3892102dd1de095f4826db09fc"
+    },
+    {
+      "path": "tests/unit/state-shape.test.js",
+      "sha256": "f6afa7c32f7221b6e2183ba16aa68f14cd2c665a6c1e4d1e491e7e34431ae8fe"
+    }
+  ],
+  "test_input_capture": "Fingerprint after successful run; test files unchanged from frozen source commit."
+}

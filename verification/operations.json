@@ -1,0 +1,125 @@
+[
+  {
+    "id": "get_system_status",
+    "method": "GET",
+    "path": "/api/health",
+    "mcp_tool": "get_system_status",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "get_workspace",
+    "method": "GET",
+    "path": "/api/merchant",
+    "mcp_tool": "get_workspace",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "create_customer",
+    "method": "POST",
+    "path": "/api/v1/customers",
+    "mcp_tool": "create_customer",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "create_order",
+    "method": "POST",
+    "path": "/api/v1/orders",
+    "mcp_tool": "create_order",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "create_dish",
+    "method": "POST",
+    "path": "/api/v1/dishes",
+    "mcp_tool": "create_dish",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "set_menu",
+    "method": "POST",
+    "path": "/api/v1/menus",
+    "mcp_tool": "set_menu",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "confirm_menu",
+    "method": "POST",
+    "path": "/api/v1/menus/confirm",
+    "mcp_tool": "confirm_menu",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "add_diner",
+    "method": "POST",
+    "path": "/api/v1/diners",
+    "mcp_tool": "add_diner",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "confirm_roster",
+    "method": "POST",
+    "path": "/api/v1/diners/confirm",
+    "mcp_tool": "confirm_roster",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "finish_boxes",
+    "method": "POST",
+    "path": "/api/v1/boxes/finish",
+    "mcp_tool": "finish_boxes",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "cancel_box",
+    "method": "POST",
+    "path": "/api/v1/boxes/cancel",
+    "mcp_tool": "cancel_box",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "resume_box",
+    "method": "POST",
+    "path": "/api/v1/boxes/resume",
+    "mcp_tool": "resume_box",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "adjust_credits",
+    "method": "POST",
+    "path": "/api/v1/credits",
+    "mcp_tool": "adjust_credits",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "nutrition_status",
+    "method": "GET",
+    "path": "/api/merchant/nutrition/status",
+    "mcp_tool": null,
+    "description": "仅返回配置状态、版本和可迁移旧配置标记，不返回密钥。",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "nutrition_connect",
+    "method": "POST",
+    "path": "/api/merchant/nutrition/connect",
+    "mcp_tool": null,
+    "description": "已认证写权限。JSON字段 apiKey 为私密输入，expectedVersion 为状态接口的配置版本（首次0）；先校验provider成功再CAS事务写入，失败不改旧值、并发冲突409。密钥不回传，不进入业务JSON或通用MCP。",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "nutrition_check",
+    "method": "POST",
+    "path": "/api/merchant/nutrition/check",
+    "mcp_tool": null,
+    "description": "已认证写权限。空JSON对象，实际调用薄荷，只有成功响应才算外部验证通过。",
+    "python_example": "examples/api_client.py"
+  },
+  {
+    "id": "nutrition_migrate",
+    "method": "POST",
+    "path": "/api/merchant/nutrition/migrate-legacy",
+    "mcp_tool": null,
+    "description": "已认证写权限。空JSON对象；只在数据库无配置时验证旧.runtime/env密钥并插入。数据库已有配置返回409，保留原文件供恢复。数据库不可用503，不回退旧文件伪装成功。",
+    "python_example": "examples/api_client.py"
+  }
+]

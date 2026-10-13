@@ -1,0 +1,42 @@
+{
+  "passed": true,
+  "source_consistent": true,
+  "delivery_id": "a00d2c18-4bca-4628-b887-d4c1df2a587c",
+  "run_id": "e0618766f82efec125c6ed9b",
+  "diagram_sha256": "e98dfacbfb34784a477444e1828e0edbe4cfbd86c1ca4968ddcc95a09a3ce74f",
+  "sources": [
+    {
+      "path": "src/schema.js",
+      "sha256": "b182e165739a9f17795477d235d85fae70329984b86930738a6495abeacc0938"
+    },
+    {
+      "path": "src/accounts.js",
+      "sha256": "6aeb80252a7eb57fc5d28efa315ba715732782f90dcee01eaf8691dd6c0c820c"
+    },
+    {
+      "path": "src/operations.js",
+      "sha256": "e68de87ce1c92e0540f937e1683824c6d343812c0e732c0cd2047cbb779c05b5"
+    },
+    {
+      "path": "src/integrations.js",
+      "sha256": "ca683b847eb448ad0dd7e486b7228b006a1f747fea562c0821c816884a586a62"
+    },
+    {
+      "path": "scripts/migrate.js",
+      "sha256": "a3b98a99b4d92921e21a83e1b39e01f64b3a14a5c2ef764519122842453f1e0e"
+    },
+    {
+      "path": "data/schema.sql",
+      "sha256": "ef51a8a99a526f4f8514e085601344ad8f85b6cf6f1f0a8fa562e01fdebb042c"
+    },
+    {
+      "path": "scripts/render-account-erd.js",
+      "sha256": "aaeada287d7ffe8b5723006e3ae36e148174872b9039333d86941b47c063131e"
+    }
+  ],
+  "observations": [
+    "Actual container-served bytes equal current HTML",
+    "Actual browser renders page online and offline",
+    "15 entities, field toggle20, pointer click details, right-click hide and show"
+  ]
+}

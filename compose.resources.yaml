@@ -1,0 +1,4 @@
+services:
+  db:
+    mem_limit: 512m
+    command: ["--performance-schema=OFF", "--innodb-buffer-pool-size=32M", "--max-connections=30"]

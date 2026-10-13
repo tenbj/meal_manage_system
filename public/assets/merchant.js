@@ -2,7 +2,15 @@
   'use strict';
   const D = window.MealDomain, $ = selector => document.querySelector(selector);
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-  const uid = prefix => `${prefix}_${crypto.randomUUID()}`;
+  const uid = prefix => {
+    if (typeof crypto.randomUUID === 'function') return `${prefix}_${crypto.randomUUID()}`;
+    // getRandomValues also works on explicitly supported non-localhost HTTP pages.
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    const hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+    return `${prefix}_${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+  };
   const list = value => String(value || '').split(/[,，、\n]/).map(s => s.trim()).filter(Boolean);
   const localTime = value => value ? new Date(value).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}) : '历史导入';
   const mealName = m => m === 'lunch' ? '午餐' : '晚餐';
@@ -224,7 +232,7 @@
   }
   async function connectBoohee(onBack=null) {
     const status=await providerRequest('status');
-    modal('连接薄荷健康',`<div class="notice">${status.configured?'已有保存的 Key。可直接检测；更换时才需要重新粘贴。':'尚未保存有效连接。请粘贴薄荷开放平台的完整 API Key。'}</div>${status.configured?`<div class="actions">${btn('检测已保存的连接','check-boohee')}</div><div id="connectionResult" role="status"></div>`:''}<p><a href="https://ai.boohee.com/console/" target="_blank" rel="noopener">打开薄荷控制台 ↗</a></p>${input(status.configured?'更换 API Key':'API Key','apiKey','','password','required autocomplete="off" placeholder="完整 Key，不是带星号的脱敏值"')}<p class="muted">实际调用“食物搜索”验证。失败时显示薄荷返回原因及错误码；连接成功后仅在本机服务端保存密钥。</p>`,'验证并连接',async f=>{await providerRequest('connect',{apiKey:f.get('apiKey')});toast('已通过真实查询验证，薄荷健康已连接');if(onBack){onBack();return false;}},onBack);
+    modal('连接薄荷健康',`<div class="notice">${status.configured?'已有保存的 Key。可直接检测；更换时才需要重新粘贴。':'尚未保存有效连接。请粘贴薄荷开放平台的完整 API Key。'}</div>${status.configured?`<div class="actions">${btn('检测已保存的连接','check-boohee')}</div><div id="connectionResult" role="status"></div>`:''}<p><a href="https://ai.boohee.com/console/" target="_blank" rel="noopener">打开薄荷控制台 ↗</a></p>${!status.configured&&status.legacyAvailable?`<div class="notice">发现此运行环境的旧连接配置，可验证后迁入店铺数据库。${btn('迁移旧连接配置','migrate-boohee')}</div>`:''}${input(status.configured?'更换 API Key':'API Key','apiKey','','password','required autocomplete="off" placeholder="完整 Key，不是带星号的脱敏值"')}<p class="muted">实际调用“食物搜索”验证。失败时显示薄荷返回原因及错误码；连接成功后密钥随店铺数据保存，数据库备份与恢复会一并保留；页面不会回显密钥。</p>`,'验证并连接',async f=>{await providerRequest('connect',{apiKey:f.get('apiKey'),expectedVersion:status.version});toast('已通过真实查询验证，薄荷健康已连接');if(onBack){onBack();return false;}},onBack);
   }
   function foodSearchModal(context=null,startQuery=query) {
     foodResults=[];foodSearchPage=1;foodContext=context;++foodRequestId;
@@ -295,6 +303,7 @@
       else if(action==='meal'){meal=b.dataset.meal;selected.clear();D.sync(state,date,meal);step=D.workflow(state,date,meal).stage;render();}
       else if(action==='today'||action==='tomorrow'){viewMode=action==='today'?'packing':'planning';date=action==='today'?D.today():D.nextDate(D.today());selected.clear();D.sync(state,date,meal);step=D.workflow(state,date,meal).stage;render();}
       else if(action==='connect-boohee'){const q=$('#foodQuery')?.value,context=foodContext;await connectBoohee(q!==undefined?()=>foodSearchModal(context,q):null);}
+      else if(action==='migrate-boohee'){b.disabled=true;try{await providerRequest('migrate-legacy',{});toast('旧连接已验证并随店铺数据保存');await connectBoohee();}catch(e){toast(e.message);b.disabled=false;}}
       else if(action==='check-boohee'){b.disabled=true;const region=$('#connectionResult');region.textContent='正在检测…';try{const r=await providerRequest('check',{});region.textContent=r.message;}catch(e){region.textContent=e.message;}finally{b.disabled=false;}}
       else if(action==='pick-online'){const draft=capturePicker();foodSearchModal(draft,draft.query);}
       else if(action==='pick-create'||action==='pick-edit'){const draft=capturePicker();dishModal(id,x=>returnToPicker(draft,x),{name:draft.query,category:draft.category},()=>returnToPicker(draft));}

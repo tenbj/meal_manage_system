@@ -1,0 +1,1274 @@
+{
+  "tables": [
+    {
+      "id": "app_users",
+      "short": "US",
+      "label": "用户账号",
+      "fields": [
+        {
+          "name": "id",
+          "definition": "INT PRIMARY KEY AUTO_INCREMENT",
+          "pk": true,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "username",
+          "definition": "VARCHAR(32) COLLATE utf8mb4_bin NOT NULL UNIQUE",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "display_name",
+          "definition": "VARCHAR(80) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "password_hash",
+          "definition": "VARCHAR(200) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "credentials_migrated",
+          "definition": "TINYINT NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        }
+      ]
+    },
+    {
+      "id": "app_sessions",
+      "short": "SE",
+      "label": "登录会话摘要",
+      "fields": [
+        {
+          "name": "token_hash",
+          "definition": "CHAR(64) PRIMARY KEY",
+          "pk": true,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": false,
+          "fk": true,
+          "nullable": false
+        },
+        {
+          "name": "expires_at",
+          "definition": "DATETIME NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        }
+      ]
+    },
+    {
+      "id": "app_tokens",
+      "short": "TK",
+      "label": "个人接入凭据摘要",
+      "fields": [
+        {
+          "name": "id",
+          "definition": "CHAR(36) PRIMARY KEY",
+          "pk": true,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": false,
+          "fk": true,
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "definition": "VARCHAR(80) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "token_hash",
+          "definition": "CHAR(64) NOT NULL UNIQUE",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "scope",
+          "definition": "VARCHAR(10) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        }
+      ]
+    },
+    {
+      "id": "customers",
+      "short": "CU",
+      "label": "旧客户",
+      "fields": [
+        {
+          "name": "id",
+          "definition": "VARCHAR(64)",
+          "pk": true,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "name",
+          "definition": "VARCHAR(80) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "nickname",
+          "definition": "VARCHAR(80) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "phone",
+          "definition": "VARCHAR(40) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "gender",
+          "definition": "VARCHAR(20) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "age",
+          "definition": "INT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "height",
+          "definition": "DECIMAL(8,2) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "current_weight",
+          "definition": "DECIMAL(8,2) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "target_weight",
+          "definition": "DECIMAL(8,2) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "activity",
+          "definition": "VARCHAR(40) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "pace",
+          "definition": "VARCHAR(40) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "address",
+          "definition": "TEXT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "restrictions",
+          "definition": "JSON NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "dislikes",
+          "definition": "JSON NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "allergies",
+          "definition": "JSON NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "notes",
+          "definition": "TEXT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "weight_records",
+          "definition": "JSON NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "updated_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": true,
+          "fk": true,
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "id": "orders",
+      "short": "OR",
+      "label": "旧订单",
+      "fields": [
+        {
+          "name": "id",
+          "definition": "VARCHAR(64)",
+          "pk": true,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "order_no",
+          "definition": "VARCHAR(64) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "customer_id",
+          "definition": "VARCHAR(64) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "service_type",
+          "definition": "VARCHAR(40) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "start_date",
+          "definition": "DATE NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "end_date",
+          "definition": "DATE NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "price",
+          "definition": "DECIMAL(12,2) NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "definition": "VARCHAR(40) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "paid_status",
+          "definition": "VARCHAR(40) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "is_repurchase",
+          "definition": "TINYINT(1) NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "notes",
+          "definition": "TEXT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "completion_rate",
+          "definition": "INT NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "total_meal_credits",
+          "definition": "INT NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "pause_rule",
+          "definition": "TEXT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "weight_records",
+          "definition": "JSON NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "updated_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": true,
+          "fk": true,
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "id": "dishes",
+      "short": "DI",
+      "label": "旧菜品",
+      "fields": [
+        {
+          "name": "id",
+          "definition": "VARCHAR(64)",
+          "pk": true,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "name",
+          "definition": "VARCHAR(120) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "category",
+          "definition": "VARCHAR(40) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "ingredients",
+          "definition": "JSON NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "kcal100",
+          "definition": "DECIMAL(10,2) NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "protein",
+          "definition": "DECIMAL(10,2) NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "fat",
+          "definition": "DECIMAL(10,2) NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "carbs",
+          "definition": "DECIMAL(10,2) NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "source",
+          "definition": "TEXT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "garlic",
+          "definition": "TINYINT(1) NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "conflicts",
+          "definition": "JSON NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "available",
+          "definition": "TINYINT(1) NOT NULL DEFAULT 1",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "notes",
+          "definition": "TEXT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "updated_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": true,
+          "fk": true,
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "id": "recipes",
+      "short": "RE",
+      "label": "旧菜单",
+      "fields": [
+        {
+          "name": "id",
+          "definition": "VARCHAR(64)",
+          "pk": true,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "recipe_date",
+          "definition": "DATE NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "meals",
+          "definition": "JSON NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "replacements",
+          "definition": "JSON NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "generated_at",
+          "definition": "VARCHAR(40) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "updated_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": true,
+          "fk": true,
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "id": "daily_out",
+      "short": "DO",
+      "label": "旧出餐",
+      "fields": [
+        {
+          "name": "id",
+          "definition": "VARCHAR(64)",
+          "pk": true,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "out_date",
+          "definition": "DATE NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "meal",
+          "definition": "VARCHAR(20) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "customer_id",
+          "definition": "VARCHAR(64) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "items",
+          "definition": "JSON NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "paused",
+          "definition": "TINYINT(1) NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "pause_policy",
+          "definition": "VARCHAR(40) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "pause_reason",
+          "definition": "TEXT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "pause_updated_at",
+          "definition": "VARCHAR(40) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "extension_order_id",
+          "definition": "VARCHAR(64) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "replaced",
+          "definition": "TINYINT(1) NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "needs_replacement",
+          "definition": "TINYINT(1) NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "note",
+          "definition": "TEXT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "generated_at",
+          "definition": "VARCHAR(40) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "updated_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": true,
+          "fk": true,
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "id": "feedbacks",
+      "short": "FE",
+      "label": "旧反馈",
+      "fields": [
+        {
+          "name": "id",
+          "definition": "VARCHAR(64)",
+          "pk": true,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "feedback_date",
+          "definition": "DATE NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "customer_id",
+          "definition": "VARCHAR(64) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "weight",
+          "definition": "DECIMAL(8,2) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "lunch_finished",
+          "definition": "VARCHAR(20) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "dinner_finished",
+          "definition": "VARCHAR(20) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "satiety",
+          "definition": "VARCHAR(20) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "dislike_dish",
+          "definition": "TEXT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "body_note",
+          "definition": "TEXT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "admin_note",
+          "definition": "TEXT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "processed",
+          "definition": "TINYINT(1) NOT NULL DEFAULT 0",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "updated_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": true,
+          "fk": true,
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "id": "labels",
+      "short": "LA",
+      "label": "旧标签",
+      "fields": [
+        {
+          "name": "id",
+          "definition": "VARCHAR(64)",
+          "pk": true,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "label_date",
+          "definition": "DATE NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "meal",
+          "definition": "VARCHAR(64) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "customer_id",
+          "definition": "VARCHAR(64) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "payload",
+          "definition": "JSON NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "updated_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": true,
+          "fk": true,
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "id": "deliveries",
+      "short": "DE",
+      "label": "旧配送",
+      "fields": [
+        {
+          "name": "id",
+          "definition": "VARCHAR(64)",
+          "pk": true,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "delivery_date",
+          "definition": "DATE NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "meal",
+          "definition": "VARCHAR(64) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "customer_id",
+          "definition": "VARCHAR(64) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "payload",
+          "definition": "JSON NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "updated_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": true,
+          "fk": true,
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "id": "posters",
+      "short": "PO",
+      "label": "旧海报",
+      "fields": [
+        {
+          "name": "id",
+          "definition": "VARCHAR(64)",
+          "pk": true,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "generated_at",
+          "definition": "VARCHAR(40) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "order_id",
+          "definition": "VARCHAR(64) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "customer_id",
+          "definition": "VARCHAR(64) NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "payload",
+          "definition": "JSON NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "updated_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": true,
+          "fk": true,
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "id": "api_requests",
+      "short": "AR",
+      "label": "操作幂等与来源审计",
+      "fields": [
+        {
+          "name": "request_id",
+          "definition": "VARCHAR(100)",
+          "pk": true,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "fingerprint",
+          "definition": "CHAR(64) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "actor",
+          "definition": "VARCHAR(30) NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "evidence",
+          "definition": "TEXT NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "response",
+          "definition": "JSON NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": true,
+          "fk": true,
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "id": "merchant_integrations",
+      "short": "MI",
+      "label": "私密商家连接配置",
+      "fields": [
+        {
+          "name": "provider",
+          "definition": "VARCHAR(40)",
+          "pk": true,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "credential",
+          "definition": "TEXT NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "definition": "INT NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": true,
+          "fk": true,
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "id": "merchant_workspace",
+      "short": "MW",
+      "label": "当前商家工作台",
+      "fields": [
+        {
+          "name": "id",
+          "definition": "INT",
+          "pk": true,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "revision",
+          "definition": "INT NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "payload",
+          "definition": "JSON NOT NULL",
+          "pk": false,
+          "fk": false,
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "definition": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+          "pk": false,
+          "fk": false,
+          "nullable": true
+        },
+        {
+          "name": "owner_id",
+          "definition": "INT NOT NULL",
+          "pk": true,
+          "fk": true,
+          "nullable": false
+        }
+      ]
+    }
+  ],
+  "foreign_keys": [
+    {
+      "parent": "app_users",
+      "child": "app_sessions",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "app_tokens",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "customers",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "orders",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "dishes",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "recipes",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "daily_out",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "feedbacks",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "labels",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "deliveries",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "posters",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "api_requests",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "merchant_integrations",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "parent": "app_users",
+      "child": "merchant_workspace",
+      "parent_key": "id",
+      "child_key": "owner_id",
+      "nullable": false,
+      "unique": false
+    }
+  ],
+  "notes": "所有数据归属账号；原数据归test。新版对象存于payload；旧九表仍独立。"
+}

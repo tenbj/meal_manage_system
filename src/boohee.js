@@ -1,10 +1,9 @@
-const fs=require('node:fs/promises');
-const path=require('node:path');
-const credentialsFile=path.resolve(process.cwd(),'.runtime/boohee.json');
+const {createIntegrationStore}=require('./integrations');
 function createBoohee(options={}) {
   const request=options.fetch||fetch;
-  const writeKey=options.writeKey|| (async apiKey=>{await fs.mkdir(path.dirname(credentialsFile),{recursive:true});await fs.writeFile(credentialsFile,JSON.stringify({apiKey}),{mode:0o600});});
-  const readKey=options.readKey|| (async()=>await fs.readFile(credentialsFile,'utf8').then(s=>JSON.parse(s).apiKey).catch(()=>'') || process.env.BOOHEE_API_KEY);
+  const store=options.store||createIntegrationStore();
+  const writeKey=options.writeKey||store.save;
+  const readKey=options.readKey||store.readKey;
   const fail=(message,kind,extra={})=>Object.assign(new Error(message),{status:502,kind,...extra});
   function safeMessage(value,key) {
     return String(value||'').split(key).join('[密钥已隐藏]').replace(/sk-[\w*.-]+/gi,'[密钥已隐藏]').replace(/Bearer\s+\S+/gi,'Bearer [已隐藏]').replace(/[\r\n<>]/g,' ').slice(0,240);
@@ -35,14 +34,20 @@ function createBoohee(options={}) {
     return {configured:true,verified:true,message:'已成功调用薄荷食物搜索接口',checkedAt:new Date().toISOString()};
   }
   return {
-    status:async()=>({provider:'boohee',configured:Boolean(await readKey())}),
+    status:options.readKey?async()=>({provider:'boohee',configured:Boolean(await readKey()),version:0}):store.status,
     check:async()=>verify(),
-    connect:async key=>{
+    connect:async(key,expectedVersion=0)=>{
       key=typeof key==='string'?key.trim():'';
       if(key.length<10||key.length>500||/[\s*•…]/.test(key)||!/^[\x21-\x7e]+$/.test(key))throw Object.assign(new Error('请粘贴完整 API Key，不能使用带星号的脱敏值或含空格的文本'),{status:422});
       const result=await verify(key);
-      try{await writeKey(key);}catch{throw fail('薄荷验证已通过，但本机无法保存连接。请检查 .runtime 目录的写入权限。','storage');}
-      return result;
+      const saved=await writeKey(key,expectedVersion);
+      return {...result,source:'database',version:saved?.version||expectedVersion+1};
+    },
+    migrateLegacy:async()=>{
+      const status=await store.status();if(status.configured)throw Object.assign(new Error('数据库已保存连接，旧配置不会覆盖；如需更换请重新验证新密钥'),{status:409,kind:'conflict'});
+      const old=await store.readLegacy();if(!old.key)throw Object.assign(new Error('没有可迁移的旧连接配置'),{status:422});
+      const result=await verify(old.key),saved=await store.save(old.key,0);
+      return {...result,source:'database',version:saved.version,migratedFrom:old.source};
     },
     search:async(q,page=1)=>{
       const data=await api('search',{keyword:q,page,per_page:20});

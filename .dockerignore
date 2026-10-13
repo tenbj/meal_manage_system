@@ -1,0 +1,9 @@
+**
+!package.json
+!package-lock.json
+!src/**
+!public/**
+!docs/**
+!scripts/migrate.js
+!.dockerignore
+!Dockerfile
