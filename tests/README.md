@@ -33,3 +33,5 @@ baseline-image 仅在新建的测试库上运行，绝不连接生产；旧版�
 AI 自主工具验收可在本轮运行目录创建 `review.request`，浏览器阶段会生成 `review.ready` 并最多等待 180 秒。使用 `node tests/support/mcp-probe.cjs <run.json>` 获取工具目录，随后传工具名和 JSON 参数调用；AI 必须基于返回结果选择操作并回读。完成后写 `review.done` 继续。该检查不是固定脚本自动认定通过，调用仍受隔离上下文校验。
 
 离线进程清理回归会启动合成 Python 父子进程，验证超时、KeyboardInterrupt、SystemExit 先回收进程树并保留原取消异常，再进入 Docker 资源清理；不调用 Docker。
+
+check-account-selectors.cjs 用当前HTML与合成拦截接口执行与真实Docker相同的完整浏览器流程，报告明确为intercepted_fixture；覆盖桌面/手机的注册登录、业务编辑、独立退出和两张图的真实鼠标操作，不能替代运行服务认证验收。
