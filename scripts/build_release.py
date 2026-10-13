@@ -2,8 +2,8 @@
 import hashlib,json,re,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-NAMES=['package.json','package-lock.json','README.md','CHANGELOG.md','LICENSE','project-contract.json','Dockerfile','.dockerignore','.gitignore','.env.example','compose.yaml','compose.database.yaml','compose.resources.yaml']
-DIRECTORIES=['src','public','data','docs','examples','scripts','tests','prototype-source','.github','verification']
+NAMES=['package.json','package-lock.json','README.md','CHANGELOG.md','LICENSE','project-contract.json','Dockerfile','.dockerignore','.gitignore','.gitattributes','.env.example','compose.yaml','compose.database.yaml','compose.resources.yaml']
+DIRECTORIES=['src','public','static','data','docs','examples','scripts','tests','prototype-source','.github','verification']
 def main():
  files=[ROOT/n for n in NAMES]
  for d in DIRECTORIES:files.extend(p for p in (ROOT/d).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
@@ -15,9 +15,10 @@ def main():
  if forbidden:raise RuntimeError('Private paths/content rejected: '+','.join(forbidden))
  version=json.loads((ROOT/'package.json').read_text(encoding='utf8'))['version'];out=ROOT/'dist';out.mkdir(exist_ok=True);target=out/f'meal-management-{version}.zip'
  manifest=[{'path':p.relative_to(ROOT).as_posix(),'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in files if p.name!='release-scan.json']
- report={'passed':True,'files':len(files),'archive':'dist/'+target.name,'content_manifest_sha256':hashlib.sha256(json.dumps(manifest,sort_keys=True).encode()).hexdigest(),'scope':'Explicit public paths; no private configuration, runtime, backups, dependencies or image archives; credential pattern scan. Full new-commit/known-secret audit recorded separately.'}
- scan=ROOT/'verification/release-scan.json';scan.write_text(json.dumps(report,indent=2),encoding='utf8')
+ scan=ROOT/'verification/release-scan.json'
  if scan not in files:files.append(scan)
+ report={'passed':True,'files':len(files),'archive':'dist/'+target.name,'content_manifest_sha256':hashlib.sha256(json.dumps(manifest,sort_keys=True).encode()).hexdigest(),'scope':'Explicit public paths; no private configuration, runtime, backups, dependencies or image archives; credential pattern scan. Full new-commit/known-secret audit recorded separately.'}
+ scan.write_text(json.dumps(report,indent=2),encoding='utf8')
  with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as z:
   for p in files:z.write(p,p.relative_to(ROOT).as_posix())
  digest=hashlib.sha256(target.read_bytes()).hexdigest();target.with_suffix('.zip.sha256').write_text(digest+'  '+target.name+'\n',encoding='ascii');print(json.dumps({'archive':str(target),'sha256':digest,'files':len(files)}))

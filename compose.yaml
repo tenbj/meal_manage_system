@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    image: ${MEAL_IMAGE:-meal-management:0.4.0}
+    image: ${MEAL_IMAGE:-meal-management:0.4.1}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-3200}:3200"
     environment:

@@ -1,0 +1,227 @@
+{
+  "server": "meal-management",
+  "transport": "streamable-http",
+  "url": "http://localhost:3200/mcp",
+  "instructions": "先 get_system_status，再 get_workspace；有明确授权和来源再写。",
+  "tools": [
+    {
+      "name": "get_system_status",
+      "purpose": "读取系统状态",
+      "kind": "read",
+      "when_to_use": "读取系统状态",
+      "side_effect": false,
+      "order": "读取",
+      "input": [],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    },
+    {
+      "name": "get_workspace",
+      "purpose": "读取商家工作台",
+      "kind": "read",
+      "when_to_use": "读取商家工作台",
+      "side_effect": false,
+      "order": "读取",
+      "input": [],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    },
+    {
+      "name": "create_customer",
+      "purpose": "新增客户",
+      "kind": "write",
+      "when_to_use": "新增客户",
+      "side_effect": true,
+      "order": "读取 revision 后写入",
+      "input": [
+        "request_id",
+        "expected_version",
+        "evidence",
+        "name",
+        "phone",
+        "address",
+        "fulfillment"
+      ],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    },
+    {
+      "name": "create_order",
+      "purpose": "登记购买餐次",
+      "kind": "write",
+      "when_to_use": "登记购买餐次",
+      "side_effect": true,
+      "order": "读取 revision 后写入",
+      "input": [
+        "request_id",
+        "expected_version",
+        "evidence",
+        "customer_id",
+        "start_date",
+        "end_date",
+        "credits",
+        "price"
+      ],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    },
+    {
+      "name": "create_dish",
+      "purpose": "新增有依据的菜品",
+      "kind": "write",
+      "when_to_use": "新增有依据的菜品",
+      "side_effect": true,
+      "order": "读取 revision 后写入",
+      "input": [
+        "request_id",
+        "expected_version",
+        "evidence",
+        "name",
+        "category",
+        "kcal100",
+        "ingredients",
+        "reference"
+      ],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    },
+    {
+      "name": "set_menu",
+      "purpose": "设置本餐菜单",
+      "kind": "write",
+      "when_to_use": "设置本餐菜单",
+      "side_effect": true,
+      "order": "读取 revision 后写入",
+      "input": [
+        "request_id",
+        "expected_version",
+        "evidence",
+        "date",
+        "meal",
+        "items"
+      ],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    },
+    {
+      "name": "confirm_menu",
+      "purpose": "确认菜单",
+      "kind": "write",
+      "when_to_use": "确认菜单",
+      "side_effect": true,
+      "order": "读取 revision 后写入",
+      "input": [
+        "request_id",
+        "expected_version",
+        "evidence",
+        "date",
+        "meal"
+      ],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    },
+    {
+      "name": "add_diner",
+      "purpose": "安排用餐人",
+      "kind": "write",
+      "when_to_use": "安排用餐人",
+      "side_effect": true,
+      "order": "读取 revision 后写入",
+      "input": [
+        "request_id",
+        "expected_version",
+        "evidence",
+        "customer_id",
+        "date",
+        "meal"
+      ],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    },
+    {
+      "name": "confirm_roster",
+      "purpose": "确认用餐与标签条件",
+      "kind": "write",
+      "when_to_use": "确认用餐与标签条件",
+      "side_effect": true,
+      "order": "读取 revision 后写入",
+      "input": [
+        "request_id",
+        "expected_version",
+        "evidence",
+        "date",
+        "meal"
+      ],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    },
+    {
+      "name": "finish_boxes",
+      "purpose": "完成出餐并扣餐",
+      "kind": "write",
+      "when_to_use": "完成出餐并扣餐",
+      "side_effect": true,
+      "order": "读取 revision 后写入",
+      "input": [
+        "request_id",
+        "expected_version",
+        "evidence",
+        "box_ids"
+      ],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    },
+    {
+      "name": "cancel_box",
+      "purpose": "取消用餐并记录原因",
+      "kind": "write",
+      "when_to_use": "取消用餐并记录原因",
+      "side_effect": true,
+      "order": "读取 revision 后写入",
+      "input": [
+        "request_id",
+        "expected_version",
+        "evidence",
+        "box_id",
+        "charge",
+        "reason"
+      ],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    },
+    {
+      "name": "resume_box",
+      "purpose": "恢复已取消或暂停的用餐",
+      "kind": "write",
+      "when_to_use": "恢复已取消或暂停的用餐",
+      "side_effect": true,
+      "order": "读取 revision 后写入",
+      "input": [
+        "request_id",
+        "expected_version",
+        "evidence",
+        "box_id"
+      ],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    },
+    {
+      "name": "adjust_credits",
+      "purpose": "追加餐次调整流水",
+      "kind": "write",
+      "when_to_use": "追加餐次调整流水",
+      "side_effect": true,
+      "order": "读取 revision 后写入",
+      "input": [
+        "request_id",
+        "expected_version",
+        "evidence",
+        "order_id",
+        "balance",
+        "reason"
+      ],
+      "returns": "JSON 结果、revision 或状态",
+      "error_handling": "409 重读；422 修正；503 保留失败"
+    }
+  ]
+}

@@ -1,0 +1,310 @@
+{
+  "schema_version": "1.2",
+  "status": "draft",
+  "project_name": "餐食管理系统",
+  "delivery_id": "a00d2c18-4bca-4628-b887-d4c1df2a587c",
+  "prototype": {
+    "path": "prototype-source/05_减脂双餐后台服务层原型.html",
+    "sha256": "557178b43c87ddb89485d6adb38f33850bad203d7759cd37064b01a879e8bc33",
+    "source_modified": false
+  },
+  "operations": [
+    {
+      "id": "get_system_status",
+      "method": "GET",
+      "path": "/api/health",
+      "mcp_tool": "get_system_status",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "get_workspace",
+      "method": "GET",
+      "path": "/api/merchant",
+      "mcp_tool": "get_workspace",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "create_customer",
+      "method": "POST",
+      "path": "/api/v1/customers",
+      "mcp_tool": "create_customer",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "create_order",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "mcp_tool": "create_order",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "create_dish",
+      "method": "POST",
+      "path": "/api/v1/dishes",
+      "mcp_tool": "create_dish",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "set_menu",
+      "method": "POST",
+      "path": "/api/v1/menus",
+      "mcp_tool": "set_menu",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "confirm_menu",
+      "method": "POST",
+      "path": "/api/v1/menus/confirm",
+      "mcp_tool": "confirm_menu",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "add_diner",
+      "method": "POST",
+      "path": "/api/v1/diners",
+      "mcp_tool": "add_diner",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "confirm_roster",
+      "method": "POST",
+      "path": "/api/v1/diners/confirm",
+      "mcp_tool": "confirm_roster",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "finish_boxes",
+      "method": "POST",
+      "path": "/api/v1/boxes/finish",
+      "mcp_tool": "finish_boxes",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "cancel_box",
+      "method": "POST",
+      "path": "/api/v1/boxes/cancel",
+      "mcp_tool": "cancel_box",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "resume_box",
+      "method": "POST",
+      "path": "/api/v1/boxes/resume",
+      "mcp_tool": "resume_box",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "adjust_credits",
+      "method": "POST",
+      "path": "/api/v1/credits",
+      "mcp_tool": "adjust_credits",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "nutrition_status",
+      "method": "GET",
+      "path": "/api/merchant/nutrition/status",
+      "mcp_tool": null,
+      "description": "仅返回配置状态、版本和可迁移旧配置标记，不返回密钥。",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "nutrition_connect",
+      "method": "POST",
+      "path": "/api/merchant/nutrition/connect",
+      "mcp_tool": null,
+      "description": "已认证写权限。JSON字段 apiKey 为私密输入，expectedVersion 为状态接口的配置版本（首次0）；先校验provider成功再CAS事务写入，失败不改旧值、并发冲突409。密钥不回传，不进入业务JSON或通用MCP。",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "nutrition_check",
+      "method": "POST",
+      "path": "/api/merchant/nutrition/check",
+      "mcp_tool": null,
+      "description": "已认证写权限。空JSON对象，实际调用薄荷，只有成功响应才算外部验证通过。",
+      "python_example": "examples/api_client.py"
+    },
+    {
+      "id": "nutrition_migrate",
+      "method": "POST",
+      "path": "/api/merchant/nutrition/migrate-legacy",
+      "mcp_tool": null,
+      "description": "已认证写权限。空JSON对象；只在数据库无配置时验证旧.runtime/env密钥并插入。数据库已有配置返回409，保留原文件供恢复。数据库不可用503，不回退旧文件伪装成功。",
+      "python_example": "examples/api_client.py"
+    }
+  ],
+  "diagrams": {
+    "architecture": {
+      "skill": "D04",
+      "path": "docs/diagrams/architecture.html",
+      "sha256": "c622282cc1d2920b7441575bc95af96643e96bfae0a639ed57656c7384437b0b",
+      "maintenance": "updated",
+      "change_note": "根据当前账号隔离、HTTP/HTTPS双入口和Docker源码核对；浏览器与容器验收待本轮完成。",
+      "sources": [
+        {
+          "path": "src/app.js",
+          "sha256": "3cba8472d7087e6092b2e218e7cdee053117e43a568eabf31fde225c11c5324a"
+        },
+        {
+          "path": "src/auth.js",
+          "sha256": "71484bfb15994e1e57c61f86005ab2349cf0979ed973c293a748b6170a0fdf93"
+        },
+        {
+          "path": "src/accounts.js",
+          "sha256": "6aeb80252a7eb57fc5d28efa315ba715732782f90dcee01eaf8691dd6c0c820c"
+        },
+        {
+          "path": "src/mcp.js",
+          "sha256": "26d83477247e1a09f579d87be833c54229837d3dcd7969227886e030b87722d8"
+        },
+        {
+          "path": "compose.yaml",
+          "sha256": "c45b33284ccb721aa701de2044e4b8e14df2b9885a98894ebeedd587b712ce9d"
+        },
+        {
+          "path": "compose.database.yaml",
+          "sha256": "036bf2b462be10d898c1d629198904f423cae738f58b5b11d7a300e5d3d87198"
+        }
+      ]
+    },
+    "erd": {
+      "skill": "G02",
+      "path": "docs/diagrams/erd.html",
+      "sha256": "e7bef891c7721668cb0d103d2a78adf29e93cff32314cb496e4a8a388008ea9d",
+      "maintenance": "reviewed_unchanged",
+      "change_note": "根据当前账号隔离、HTTP/HTTPS双入口和Docker源码核对；浏览器与容器验收待本轮完成。",
+      "sources": [
+        {
+          "path": "src/schema.js",
+          "sha256": "b182e165739a9f17795477d235d85fae70329984b86930738a6495abeacc0938"
+        },
+        {
+          "path": "src/accounts.js",
+          "sha256": "6aeb80252a7eb57fc5d28efa315ba715732782f90dcee01eaf8691dd6c0c820c"
+        },
+        {
+          "path": "src/operations.js",
+          "sha256": "e68de87ce1c92e0540f937e1683824c6d343812c0e732c0cd2047cbb779c05b5"
+        },
+        {
+          "path": "src/integrations.js",
+          "sha256": "ca683b847eb448ad0dd7e486b7228b006a1f747fea562c0821c816884a586a62"
+        },
+        {
+          "path": "scripts/migrate.js",
+          "sha256": "a3b98a99b4d92921e21a83e1b39e01f64b3a14a5c2ef764519122842453f1e0e"
+        },
+        {
+          "path": "data/schema.sql",
+          "sha256": "ef51a8a99a526f4f8514e085601344ad8f85b6cf6f1f0a8fa562e01fdebb042c"
+        }
+      ]
+    }
+  },
+  "checks": [
+    {
+      "name": "architecture",
+      "status": "pending",
+      "evidence": "verification/architecture-report.json"
+    },
+    {
+      "name": "erd",
+      "status": "pending",
+      "evidence": "verification/erd-report.json"
+    },
+    {
+      "name": "business",
+      "status": "passed",
+      "evidence": "verification/business.json"
+    },
+    {
+      "name": "api",
+      "status": "pending",
+      "evidence": "verification/api-mcp.json"
+    },
+    {
+      "name": "mcp",
+      "status": "pending",
+      "evidence": "verification/api-mcp.json"
+    },
+    {
+      "name": "browser",
+      "status": "pending",
+      "evidence": "verification/browser.json"
+    },
+    {
+      "name": "persistence",
+      "status": "pending",
+      "evidence": "verification/docker-report.json"
+    },
+    {
+      "name": "portable",
+      "status": "pending",
+      "evidence": "verification/docker-report.json"
+    },
+    {
+      "name": "docker",
+      "status": "pending",
+      "evidence": "verification/docker-report.json"
+    },
+    {
+      "name": "ai_task",
+      "status": "pending",
+      "evidence": "verification/ai-task.json"
+    },
+    {
+      "name": "release_scan",
+      "status": "pending",
+      "evidence": "verification/release-scan.json"
+    },
+    {
+      "name": "unit",
+      "status": "passed",
+      "evidence": "verification/unit.json"
+    }
+  ],
+  "limits": [
+    "HTTP和HTTPS在显式配置入口后均受支持；当前发布验收使用隔离本机HTTP/TLS，未部署或修改正式公网服务。",
+    "薄荷外部查询使用合成响应测试；本轮不使用真实用户密钥，不宣称外部薄荷服务实测通过。",
+    "旧API独立面向旧九表；新工具与商家工作台一致。",
+    "0.4多账号数据库与0.3不兼容；禁止只切旧镜像或用旧备份覆盖新数据。",
+    "邮箱验证、忘记密码自助找回、高可用和手机真机软键盘不在本版本验收范围。"
+  ],
+  "docker": {
+    "required": true,
+    "mcp_mode": "embedded",
+    "stateful": true,
+    "compose_files": [
+      "compose.yaml",
+      "compose.database.yaml",
+      "compose.resources.yaml"
+    ],
+    "dockerfiles": [
+      "Dockerfile"
+    ],
+    "ignore_files": [
+      ".dockerignore"
+    ],
+    "guide": "docs/Docker部署.md",
+    "inputs": [
+      "src",
+      "public",
+      "docs",
+      "data",
+      "package.json",
+      "package-lock.json",
+      "Dockerfile",
+      ".dockerignore",
+      "compose.yaml",
+      "compose.database.yaml",
+      "compose.resources.yaml",
+      "scripts/migrate.js",
+      ".gitattributes"
+    ],
+    "services": [
+      "app",
+      "db"
+    ],
+    "evidence": "verification/docker-report.json"
+  }
+}
