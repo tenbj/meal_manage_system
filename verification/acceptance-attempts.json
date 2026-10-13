@@ -1,0 +1,40 @@
+{
+  "scope": "Failed attempts retained; their completed checks are not substituted for the final run. Full diagnostics and unrelated host inventory remain private.",
+  "attempts": [
+    {
+      "compose_project": "h02test-meal-a23a06de5a55",
+      "passed": false,
+      "started_at": "2026-10-13T14:44:49.340977+00:00",
+      "finished_at": "2026-10-13T14:51:09.008279+00:00",
+      "reason": "Windows default text decoding rejected the UTF-8 version file; later stages were not executed.",
+      "fix_commit": "d34cce1",
+      "completed_checks": [
+        "compose_config",
+        "build",
+        "cleanup"
+      ],
+      "cleanup_passed": true,
+      "private_report_sha256": "66d661d4bf5d971d50851b4093e47d8c0b8cda094a86a366e26e3dedbe1a1c5f"
+    },
+    {
+      "compose_project": "h02test-meal-2756abaec879",
+      "passed": false,
+      "started_at": "2026-10-13T14:53:36.570912+00:00",
+      "finished_at": "2026-10-13T15:02:45.548430+00:00",
+      "reason": "The customer navigation test used an exact accessible name without the visible icon; the first business navigation timed out.",
+      "fix_commit": "b30c877",
+      "completed_checks": [
+        "compose_config",
+        "build",
+        "startup",
+        "upgrade",
+        "api",
+        "mcp",
+        "auth",
+        "cleanup"
+      ],
+      "cleanup_passed": true,
+      "private_report_sha256": "dfd55e5e2d7f83dc9a5789f142965d4b7d71d1f0b5ea825b49d2f946b6d9c183"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "source_consistent": true,
+  "delivery_id": "a00d2c18-4bca-4628-b887-d4c1df2a587c",
+  "run_id": "e0618766f82efec125c6ed9b",
+  "diagram_sha256": "8be0e364e9a223fe290f848b39ac3e31d298bf7974591c399c9f22cc13a0f507",
+  "sources": [
+    {
+      "path": "src/app.js",
+      "sha256": "3cba8472d7087e6092b2e218e7cdee053117e43a568eabf31fde225c11c5324a"
+    },
+    {
+      "path": "src/auth.js",
+      "sha256": "bb61a2a00d7741c970daf9b98c0467503413d7cbae4b6f1ab0b19f626b7aa7ae"
+    },
+    {
+      "path": "src/accounts.js",
+      "sha256": "6aeb80252a7eb57fc5d28efa315ba715732782f90dcee01eaf8691dd6c0c820c"
+    },
+    {
+      "path": "src/mcp.js",
+      "sha256": "26d83477247e1a09f579d87be833c54229837d3dcd7969227886e030b87722d8"
+    },
+    {
+      "path": "compose.yaml",
+      "sha256": "c45b33284ccb721aa701de2044e4b8e14df2b9885a98894ebeedd587b712ce9d"
+    },
+    {
+      "path": "compose.database.yaml",
+      "sha256": "036bf2b462be10d898c1d629198904f423cae738f58b5b11d7a300e5d3d87198"
+    },
+    {
+      "path": "src/origin-policy.js",
+      "sha256": "379e31baece013eec0763718e6baecdfc3a43256439c31b48ad8cf85c9efd4c7"
+    }
+  ],
+  "observations": [
+    "Actual container-served bytes equal current HTML",
+    "Actual browser renders page online and offline"
+  ]
+}

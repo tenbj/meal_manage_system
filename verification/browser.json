@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "environment": "isolated_runtime",
+  "checks": [
+    "same-host HTTP and HTTPS simultaneous login with independent cookie names and Secure attributes",
+    "both protocols UI business writes and shared-account readback without Referer",
+    "HTTP logout remains logged out while HTTPS session stays valid",
+    "15 entity ER details/toggle20/hide/show",
+    "both diagrams rendered offline",
+    "HTTP and HTTPS mobile registration, independent empty accounts, both business writes and cross-account isolation",
+    "HTTPS logout cannot borrow HTTP cookie and leaves HTTP account working; both final logouts verified"
+  ],
+  "delivery_id": "a00d2c18-4bca-4628-b887-d4c1df2a587c",
+  "run_id": "e0618766f82efec125c6ed9b",
+  "source_commit": "59b58e87b432e4e5f202a66d452c000e5dcd03ed"
+}

@@ -4,7 +4,7 @@
 
 ## 启动与部署
 
-当前候选版本：0.4.1（待最终 Docker 验收与发布）。Node.js 24、MySQL 8.4、Docker Compose。应用默认仅绑定宿主机回环地址。
+版本：0.4.1。已完成隔离 Docker 验收；GitHub 发布状态以仓库 Release 为准。Node.js 24、MySQL 8.4、Docker Compose。应用默认仅绑定宿主机回环地址。
 
 1. 按 [.env.example](.env.example) 在仓库外创建私有配置。
 2. 按 [Docker 部署](docs/Docker部署.md) 构建、备份并显式运行 `node scripts/migrate.js`。
@@ -35,4 +35,4 @@
 
 [更新记录](CHANGELOG.md) 按功能列明本次相对 v0.2.0 的变化。verification 仅保留当前发布对应的脱敏证据；本地临时上下文、备份及凭据放在忽略目录 .test-runs，禁止提交和入包。
 
-GitHub 发布与生产部署是不同动作。发布前必须完成隔离 Docker 验收；当前合同为 draft，真实 Docker 验收尚未完成，不可据此声明已上线。项目包不自动重启现有生产系统。许可证尚未选择，见 LICENSE。
+GitHub 发布与生产部署是不同动作。当前合同为 ready，已完成本轮隔离 Docker、真实双协议浏览器、API/MCP、自主工具操作及恢复验收；这不代表现有生产系统已更新。项目包不自动重启现有生产系统。许可证尚未选择，见 LICENSE。

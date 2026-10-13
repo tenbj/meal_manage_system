@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "files": 123,
+  "archive": "dist/meal-management-0.4.1.zip",
+  "content_manifest_sha256": "048939a452d7302978880f0c66fb76b17154b5e3dc3547e4c910dc663ac6bbaf",
+  "scope": "Explicit public paths; no private configuration, runtime, backups, dependencies or image archives; credential pattern scan. Full new-commit/known-secret audit recorded separately."
+}

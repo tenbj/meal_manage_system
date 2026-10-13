@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "checks": [
+    "register-login-validation-and-empty-workspaces",
+    "workspace-legacy-write-delete-concurrent-owner-isolation-and-idempotency",
+    "personal-token-scopes-revoke-no-cross-owner-MCP-read-write",
+    "password-change-session-invalidation-logout-CSRF-other-user-unaffected"
+  ],
+  "tested_at": "2026-10-13T15:22:21.088Z",
+  "delivery_id": "a00d2c18-4bca-4628-b887-d4c1df2a587c",
+  "run_id": "e0618766f82efec125c6ed9b",
+  "source_commit": "59b58e87b432e4e5f202a66d452c000e5dcd03ed",
+  "account_count": 2
+}

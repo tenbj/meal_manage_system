@@ -1,6 +1,6 @@
 {
   "schema_version": "1.2",
-  "status": "draft",
+  "status": "ready",
   "project_name": "餐食管理系统",
   "delivery_id": "a00d2c18-4bca-4628-b887-d4c1df2a587c",
   "prototype": {
@@ -139,7 +139,7 @@
       "path": "docs/diagrams/architecture.html",
       "sha256": "8be0e364e9a223fe290f848b39ac3e31d298bf7974591c399c9f22cc13a0f507",
       "maintenance": "updated",
-      "change_note": "新增按入口选择独立HTTP/HTTPS会话，修复跨协议Cookie回退；真实浏览器验收待本轮完成。",
+      "change_note": "新增按入口选择独立HTTP/HTTPS会话，修复跨协议Cookie回退；本轮真实Docker HTTP/HTTPS浏览器验收通过。",
       "sources": [
         {
           "path": "src/app.js",
@@ -176,7 +176,7 @@
       "path": "docs/diagrams/erd.html",
       "sha256": "e98dfacbfb34784a477444e1828e0edbe4cfbd86c1ca4968ddcc95a09a3ce74f",
       "maintenance": "updated",
-      "change_note": "修复SVG指针捕获导致实体普通点击无法打开详情；完整页面夹具已验证，最终容器验收待完成。",
+      "change_note": "修复SVG指针捕获导致实体普通点击无法打开详情；完整页面夹具与本轮实际容器浏览器均已验证。",
       "sources": [
         {
           "path": "src/schema.js",
@@ -212,12 +212,12 @@
   "checks": [
     {
       "name": "architecture",
-      "status": "pending",
+      "status": "passed",
       "evidence": "verification/architecture-report.json"
     },
     {
       "name": "erd",
-      "status": "pending",
+      "status": "passed",
       "evidence": "verification/erd-report.json"
     },
     {
@@ -227,42 +227,42 @@
     },
     {
       "name": "api",
-      "status": "pending",
+      "status": "passed",
       "evidence": "verification/api-mcp.json"
     },
     {
       "name": "mcp",
-      "status": "pending",
+      "status": "passed",
       "evidence": "verification/api-mcp.json"
     },
     {
       "name": "browser",
-      "status": "pending",
+      "status": "passed",
       "evidence": "verification/browser.json"
     },
     {
       "name": "persistence",
-      "status": "pending",
+      "status": "passed",
       "evidence": "verification/docker-report.json"
     },
     {
       "name": "portable",
-      "status": "pending",
+      "status": "passed",
       "evidence": "verification/docker-report.json"
     },
     {
       "name": "docker",
-      "status": "pending",
+      "status": "passed",
       "evidence": "verification/docker-report.json"
     },
     {
       "name": "ai_task",
-      "status": "pending",
+      "status": "passed",
       "evidence": "verification/ai-task.json"
     },
     {
       "name": "release_scan",
-      "status": "pending",
+      "status": "passed",
       "evidence": "verification/release-scan.json"
     },
     {
