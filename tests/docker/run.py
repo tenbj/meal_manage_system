@@ -5,11 +5,21 @@ ROOT=Path(__file__).resolve().parents[2]
 def free_port():
  with socket.socket() as s:s.bind(('127.0.0.1',0));return s.getsockname()[1]
 def run(args,input=None,timeout=240):
- p=subprocess.run(args,cwd=ROOT,input=input,capture_output=True,timeout=timeout)
- if p.returncode:
-  if 'work' in globals():(work/'command-failure.log').write_bytes(p.stdout+p.stderr)
-  raise RuntimeError('Command failed; private command-failure.log retained: '+str(args[0]))
- return p.stdout
+ p=subprocess.Popen(args,cwd=ROOT,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=os.name!='nt')
+ timed_out=False
+ try:stdout,stderr=p.communicate(input,timeout=timeout)
+ except subprocess.TimeoutExpired:
+  timed_out=True
+  if os.name=='nt':subprocess.run(['taskkill','/PID',str(p.pid),'/T','/F'],capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW)
+  else:
+   import signal
+   os.killpg(p.pid,signal.SIGKILL)
+  stdout,stderr=p.communicate(timeout=15)
+ if p.returncode or timed_out:
+  log='command-failure-'+secrets.token_hex(4)+'.log'
+  if 'work' in globals():(work/log).write_bytes(stdout+stderr)
+  raise RuntimeError(('Command timed out' if timed_out else 'Command failed')+'; private '+log+' retained: '+str(args[0]))
+ return stdout
 def now():return datetime.datetime.now(datetime.timezone.utc).isoformat()
 p=argparse.ArgumentParser();p.add_argument('--baseline-image',required=True,help='Existing 0.3 image ID/tag used only with the fresh test database');p.add_argument('--keep-on-failure',action='store_true');p.add_argument('--peer-project',action='append',default=[],help='Exact other agent isolated Compose project; never a production project');p.add_argument('--reuse-build-cache',action='store_true');a=p.parse_args()
 assert all(__import__('re').fullmatch(r'h02test-[a-z0-9-]+',peer) for peer in a.peer_project)
@@ -21,11 +31,16 @@ oldenv=work/'old.env';oldenv.write_text('\n'.join(k+'='+(a.baseline_image if k==
 limits=work/'limits.yaml';limits.write_text('services:\n  db:\n    mem_limit: 512m\n    command: ["--performance-schema=OFF", "--innodb-buffer-pool-size=32M", "--max-connections=30"]\n',encoding='utf8')
 ctx={'project':project,'config':cfg};(work/'run.json').write_text(json.dumps(ctx),encoding='utf8')
 report={'passed':False,'environment':'isolated','run_id':secrets.token_hex(12),'started_at':now(),'compose_project':project,'mcp_mode':'embedded','checks':[],'private_run':work.name};proxy=None
+contract=json.loads((ROOT/'project-contract.json').read_text(encoding='utf8'))
+def snapshot():
+ files={}
+ for value in contract['docker']['inputs']:
+  path=ROOT/value
+  for item in ([path] if path.is_file() else path.rglob('*')):
+   if item.is_file() and not {'node_modules','.git','__pycache__'}&set(item.parts):files[item.relative_to(ROOT).as_posix()]=hashlib.sha256(item.read_bytes()).hexdigest()
+ return [{'path':p,'sha256':files[p]} for p in sorted(files)]
+report['delivery_id']=contract['delivery_id'];report['inputs']=snapshot()
 existing={}
-for cid in run(['docker','ps','-q']).decode().split():
- d=json.loads(run(['docker','inspect',cid]))[0]
- if d.get('Config',{}).get('Labels',{}).get('com.docker.compose.project') in a.peer_project:continue
- existing[cid]=(d['Image'],d['State']['StartedAt'],d['RestartCount'])
 report['excluded_peer_projects']=a.peer_project
 report['existing_containers']=existing
 def save(): (work/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
@@ -43,6 +58,11 @@ def http(path,method='GET',body=None):
  except urllib.error.HTTPError as e:return e.code,{}
 fingerprint="const c=require('crypto'),db=require('./src/db');(async()=>{const out={};for(const t of ['app_users','app_sessions','app_tokens','merchant_workspace','merchant_integrations','api_requests','customers','orders','dishes','recipes','daily_out','feedbacks','labels','deliveries','posters']){const [rows]=await db.getPool().query('SELECT * FROM `'+t+'`');out[t]=c.createHash('sha256').update(JSON.stringify(rows.map(x=>JSON.stringify(x)).sort())).digest('hex')}console.log(JSON.stringify(out));await db.closePool()})().catch(()=>process.exit(1));"
 try:
+ save();print('Preparing '+project,flush=True)
+ for cid in run(['docker','ps','-q']).decode().split():
+  d=json.loads(run(['docker','inspect',cid]))[0]
+  if d.get('Config',{}).get('Labels',{}).get('com.docker.compose.project') in a.peer_project:continue
+  existing[cid]=(d['Image'],d['State']['StartedAt'],d['RestartCount'])
  compose('config','--quiet');compose('config','--quiet',app_only=True);check('compose_config','Application + isolated MySQL + limits and app-only configuration parsed')
  run(['docker','build',* ([] if a.reuse_build_cache else ['--no-cache']),'-t',cfg['MEAL_IMAGE'],'.'],timeout=900)
  report['images']=[{'service':'app','id':run(['docker','image','inspect','--format','{{.Id}}',cfg['MEAL_IMAGE']]).decode().strip()},{'service':'db','id':run(['docker','image','inspect','--format','{{.Id}}','mysql:8.4']).decode().strip()}];check('build','Target build from release working tree; cache='+str(a.reuse_build_cache))
@@ -88,14 +108,19 @@ try:
  assert node(fingerprint)==before;check('failure_recovery','Dependency outage gives 503, recovery reconnects without app restart; all table hashes retained')
  # App-only configuration connects to an existing test MySQL on the same isolated network.
  compose('up','-d','--no-deps','--no-build','--force-recreate','--wait','app',app_only=True);assert http('/api/merchant')[0]==200;report['app_only_verified']=True
+ assert snapshot()==report['inputs'],'Source inputs changed during acceptance; evidence rejected'
  report['runtime_passed']=True
 except Exception as e:
- report['error']=str(e);save();print('Acceptance failed; private diagnostic retained',flush=True);raise
+ report['error']=str(e);save();print('Acceptance failed; private diagnostic retained',flush=True)
 finally:
- if proxy:proxy.terminate();proxy.wait(timeout=15)
- if report.get('runtime_passed') or not a.keep_on_failure:
-  compose('down','--volumes','--remove-orphans',timeout=300)
-  for cid,expected in existing.items():
-   d=json.loads(run(['docker','inspect',cid]))[0];assert (d['Image'],d['State']['StartedAt'],d['RestartCount'])==expected
-  check('cleanup','Removed only '+project+' resources; every pre-existing container image/start/restart count unchanged')
+ try:
+  if proxy:proxy.terminate();proxy.wait(timeout=15)
+  if report.get('runtime_passed') or not a.keep_on_failure:
+   compose('down','--volumes','--remove-orphans',timeout=300)
+   for cid,expected in existing.items():
+    d=json.loads(run(['docker','inspect',cid]))[0];assert (d['Image'],d['State']['StartedAt'],d['RestartCount'])==expected
+   check('cleanup','Removed only '+project+' resources; every pre-existing container image/start/restart count unchanged')
+ except Exception as e:
+  report['cleanup_error']=str(e);print('Cleanup incomplete; original failure and private diagnostic retained',flush=True)
  report['finished_at']=now();save();print(str(work/'report.json'),flush=True)
+if report.get('error') or report.get('cleanup_error'):raise SystemExit(1)

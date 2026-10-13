@@ -2,6 +2,12 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const ctx=require('../support/context.cjs')(),cfg=ctx.config;
 (async()=>{
+ if(fs.existsSync(path.join(ctx.runDir,'review.request'))){
+  const deadline=Date.now()+180000;
+  fs.writeFileSync(path.join(ctx.runDir,'review.ready'),'ready');
+  while(!fs.existsSync(path.join(ctx.runDir,'review.done'))){assert(Date.now()<deadline,'Independent review gate timed out');await new Promise(r=>setTimeout(r,500));}
+ }
+
  const browser=await chromium.launch({headless:true,...(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE}:{})});
  const context=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:1440,height:1000}}),checks=[];
  try{
