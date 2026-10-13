@@ -5,7 +5,7 @@ ROOT=Path(__file__).resolve().parents[2]
 def free_port():
  with socket.socket() as s:s.bind(('127.0.0.1',0));return s.getsockname()[1]
 sys.path.insert(0,str(ROOT/'tests/support'))
-from process_runner import run_command
+from process_runner import run_command,stop_tree
 
 def run(args,input=None,timeout=240):
  return run_command(args,cwd=ROOT,log_dir=globals().get('work'),input=input,timeout=timeout)
@@ -68,7 +68,7 @@ try:
  for service in ['app','db']:
   inspected=json.loads(run(['docker','inspect',project+'-'+service+'-1']))[0]['HostConfig']
   assert inspected['RestartPolicy']['Name']=='no' and inspected['Memory']==512*1024*1024 and inspected['NanoCpus']==500000000
- assert http('/health/ready')[1]['version']==json.loads((ROOT/'package.json').read_text())['version'];check('startup','Target non-root application and isolated MySQL healthy');check('upgrade','Fresh 0.3 baseline synthetic workspace upgraded twice; exact revision and payload preserved under test')
+ assert http('/health/ready')[1]['version']==json.loads((ROOT/'package.json').read_text(encoding="utf8"))['version'];check('startup','Target non-root application and isolated MySQL healthy');check('upgrade','Fresh 0.3 baseline synthetic workspace upgraded twice; exact revision and payload preserved under test')
  output=run(['node','tests/integration/accounts.cjs',str(work/'run.json')]);check('api','Real two-user API isolation, concurrent reads, legacy tables, idempotency and version conflicts');check('mcp','Real SDK handshake/list13/read/write, scopes and owner isolation');check('auth','Registration/login/password/session/token revocation and untrusted origin rejection')
  # Local TLS proxy verifies real browser HTTPS without installing trust or touching cloud configuration.
  from cryptography import x509
@@ -78,13 +78,13 @@ try:
  key=rsa.generate_private_key(public_exponent=65537,key_size=2048);name=x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'localhost')]);stamp=datetime.datetime.now(datetime.timezone.utc)
  cert=x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key()).serial_number(x509.random_serial_number()).not_valid_before(stamp-datetime.timedelta(minutes=1)).not_valid_after(stamp+datetime.timedelta(days=1)).add_extension(x509.SubjectAlternativeName([x509.DNSName('localhost'),x509.IPAddress(__import__('ipaddress').ip_address('127.0.0.1'))]),False).sign(key,hashes.SHA256())
  (work/'tls.key').write_bytes(key.private_bytes(serialization.Encoding.PEM,serialization.PrivateFormat.PKCS8,serialization.NoEncryption()));(work/'tls.crt').write_bytes(cert.public_bytes(serialization.Encoding.PEM))
- proxy=subprocess.Popen(['node','tests/support/tls-proxy.cjs',str(tls_port),cfg['PUBLIC_URL'],str(work/'tls.key'),str(work/'tls.crt')],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ proxy=subprocess.Popen(['node','tests/support/tls-proxy.cjs',str(tls_port),cfg['PUBLIC_URL'],str(work/'tls.key'),str(work/'tls.crt')],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=os.name!='nt')
  time.sleep(1);run(['node','tests/integration/browser.cjs',str(work/'run.json')],timeout=240)
  for name in ['architecture','erd']:
   req=urllib.request.Request(cfg['PUBLIC_URL']+'/diagrams/'+name+'.html',headers={'Authorization':'Bearer '+cfg['APP_ACCESS_TOKEN']})
   with urllib.request.urlopen(req) as r:assert r.read()==(ROOT/'docs/diagrams'/f'{name}.html').read_bytes()
  check('diagrams','Container bytes match both published HTML; real browser ER toggle20/details/hide/show and offline pages passed; real HTTP/TLS login and mobile registration passed')
- users=json.loads((work/'users.json').read_text());ids=[x['id'] for x in users]
+ users=json.loads((work/'users.json').read_text(encoding="utf8"));ids=[x['id'] for x in users]
  node("const {identity}=require('./src/identity'),s=require('./src/integrations').createIntegrationStore();Promise.all("+json.dumps(ids)+".map(id=>identity.run({id},async()=>{await s.save('synthetic-owner-'+id,0);if(await s.readKey()!=='synthetic-owner-'+id)throw Error('Isolation')}))).then(()=>require('./src/db').closePool()).catch(()=>process.exit(1));")
  before=node(fingerprint);node("require('fs').writeFileSync('.runtime/probe','synthetic');if(process.getuid()===0)process.exit(1)")
  compose('up','-d','--no-build','--force-recreate','--wait','--wait-timeout','900','db','app',timeout=960);assert node(fingerprint)==before;assert b'synthetic' in node("console.log(require('fs').readFileSync('.runtime/probe','utf8'))");check('recreate','Recreated app and database containers retained all 15 table hashes, per-user integration credentials and runtime file')
@@ -109,27 +109,33 @@ except BaseException as e:
  report['error']=str(e);save();print('Acceptance failed; private diagnostic retained',flush=True)
  if not isinstance(e,Exception):raise
 finally:
- if proxy:
-  try:
-   proxy.terminate()
-   try:proxy.wait(timeout=15)
-   except subprocess.TimeoutExpired:proxy.kill();proxy.wait(timeout=5)
-  except Exception as e:report['proxy_cleanup_error']=str(e)
- try:
-  if report.get('runtime_passed') or not a.keep_on_failure:
-   compose('down','--volumes','--remove-orphans',timeout=300)
-   assert not run(['docker','ps','-aq','--filter','label=com.docker.compose.project='+project]).strip(),'Test containers remain after cleanup'
-   changes=[]
-   for cid,expected in existing.items():
-    try:
-     d=json.loads(run(['docker','inspect',cid]))[0];actual={'name':d['Name'],'image':d['Image'],'started_at':d['State']['StartedAt'],'restart_count':d['RestartCount'],'status':d['State']['Status']}
-    except Exception:actual={'missing_or_unreadable':True}
-    if actual!=expected:changes.append({'id':cid,'before':expected,'after':actual})
-   report['preexisting_container_changes']=changes;save()
-   assert not changes,'Pre-existing container state changed; full private differences require independent review'
-   assert not report.get('proxy_cleanup_error'),'Local TLS proxy cleanup incomplete'
-   check('cleanup','Removed only '+project+' resources; every pre-existing container image/start/restart count unchanged')
- except Exception as e:
-  report['cleanup_error']=str(e);print('Cleanup incomplete; original failure and private diagnostic retained',flush=True)
+ cleanup_errors=[]
+ def cleanup_step(name,action):
+  try:return action()
+  except BaseException as cleanup:
+   cleanup_errors.append({'step':name,'type':type(cleanup).__name__})
+   return None
+ if proxy:cleanup_step('tls_proxy',lambda:stop_tree(proxy))
+ if report.get('runtime_passed') or not a.keep_on_failure:
+  cleanup_step('compose_down',lambda:compose('down','--volumes','--remove-orphans',timeout=300))
+  remaining={}
+  for kind,args in [('containers',['ps','-aq']),('volumes',['volume','ls','-q']),('networks',['network','ls','-q'])]:
+   value=cleanup_step('read_'+kind,lambda args=args:run(['docker',*args,'--filter','label=com.docker.compose.project='+project]))
+   remaining[kind]=value.decode().split() if value is not None else None
+  report['remaining_resources']=remaining
+  changes=[]
+  for cid,expected in existing.items():
+   value=cleanup_step('inspect_existing',lambda cid=cid:run(['docker','inspect',cid]))
+   if value is not None:
+    d=json.loads(value)[0];actual={'name':d['Name'],'image':d['Image'],'started_at':d['State']['StartedAt'],'restart_count':d['RestartCount'],'status':d['State']['Status']}
+   else:actual={'missing_or_unreadable':True}
+   if actual!=expected:changes.append({'id':cid,'before':expected,'after':actual})
+  report['preexisting_container_changes']=changes
+  if changes:cleanup_errors.append({'step':'preexisting_container_changes','count':len(changes)})
+  if any(value!=[] for value in remaining.values()):cleanup_errors.append({'step':'remaining_resources'})
+  if not cleanup_errors:check('cleanup','Removed only '+project+' containers/volumes/networks; every pre-existing container image/start/restart count unchanged')
+ if cleanup_errors:
+  report['cleanup_errors']=cleanup_errors;report['cleanup_error']='Cleanup or pre-existing state verification incomplete; see private details'
+  print('Cleanup incomplete; original failure and private diagnostic retained',flush=True)
  report['finished_at']=now();save();print(str(work/'report.json'),flush=True)
-if report.get('error') or report.get('cleanup_error') or report.get('proxy_cleanup_error'):raise SystemExit(1)
+if report.get('error') or report.get('cleanup_error') or report.get('cancelled'):raise SystemExit(1)

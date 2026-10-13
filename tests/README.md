@@ -15,6 +15,7 @@
 npm ci
 npm test
 python tests/unit/process_runner_test.py
+python tests/unit/docker_cleanup_test.py
 npm run test:e2e
 python tests/docker/run.py --baseline-image <本机已保存的0.3版本镜像ID或标签>
 ```

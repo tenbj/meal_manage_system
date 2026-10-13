@@ -3,8 +3,8 @@ import argparse,gzip,io,json,re,subprocess,tarfile
 from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--context',required=True);p.add_argument('--image',required=True);a=p.parse_args()
 root=Path(__file__).resolve().parents[2];context=Path(a.context).resolve();assert context.is_relative_to(root/'.test-runs')
-ctx=json.loads(context.read_text());assert re.fullmatch('h02test-meal-[0-9a-f]{12}',ctx['project'])
-private=context.parent;report=json.loads((private/'report.json').read_text());needles=[v.encode() for k,v in ctx['config'].items() if k in ['DB_PASSWORD','DB_ROOT_PASSWORD','APP_ACCESS_TOKEN','APP_READ_TOKEN','INITIAL_PASSWORD']]
+ctx=json.loads(context.read_text(encoding="utf8"));assert re.fullmatch('h02test-meal-[0-9a-f]{12}',ctx['project'])
+private=context.parent;report=json.loads((private/'report.json').read_text(encoding='utf8'));needles=[v.encode() for k,v in ctx['config'].items() if k in ['DB_PASSWORD','DB_ROOT_PASSWORD','APP_ACCESS_TOKEN','APP_READ_TOKEN','INITIAL_PASSWORD']]
 archive=private/'image.tar';subprocess.run(['docker','save','--output',str(archive),a.image],check=True,timeout=600)
 inspected=json.loads(subprocess.check_output(['docker','image','inspect',a.image]))[0];assert inspected['Config']['User']=='node'
 assert inspected['Id']==next(x['id'] for x in report['images'] if x['service']=='app'),'Image differs from accepted runtime'
