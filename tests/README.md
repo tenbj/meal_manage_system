@@ -14,6 +14,7 @@
 ```text
 npm ci
 npm test
+python tests/unit/process_runner_test.py
 npm run test:e2e
 python tests/docker/run.py --baseline-image <本机已保存的0.3版本镜像ID或标签>
 ```
@@ -29,3 +30,5 @@ baseline-image 仅在新建的测试库上运行，绝不连接生产；旧版�
 并行验收协调只可用 `--peer-project <确切测试项目名>` 明确排除另一条获授权的验收运行；默认不排除任何已有容器。异常日志按命令独立保留，超时只终止本次命令的进程树；Docker 引擎不可用时报告清理未完成，禁止自动全局重启或清理。
 
 AI 自主工具验收可在本轮运行目录创建 `review.request`，浏览器阶段会生成 `review.ready` 并最多等待 180 秒。使用 `node tests/support/mcp-probe.cjs <run.json>` 获取工具目录，随后传工具名和 JSON 参数调用；AI 必须基于返回结果选择操作并回读。完成后写 `review.done` 继续。该检查不是固定脚本自动认定通过，调用仍受隔离上下文校验。
+
+离线进程清理回归会启动合成 Python 父子进程，验证超时、KeyboardInterrupt、SystemExit 先回收进程树并保留原取消异常，再进入 Docker 资源清理；不调用 Docker。

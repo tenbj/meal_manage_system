@@ -4,22 +4,12 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 def free_port():
  with socket.socket() as s:s.bind(('127.0.0.1',0));return s.getsockname()[1]
+sys.path.insert(0,str(ROOT/'tests/support'))
+from process_runner import run_command
+
 def run(args,input=None,timeout=240):
- p=subprocess.Popen(args,cwd=ROOT,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=os.name!='nt')
- timed_out=False
- try:stdout,stderr=p.communicate(input,timeout=timeout)
- except subprocess.TimeoutExpired:
-  timed_out=True
-  if os.name=='nt':subprocess.run(['taskkill','/PID',str(p.pid),'/T','/F'],capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW)
-  else:
-   import signal
-   os.killpg(p.pid,signal.SIGKILL)
-  stdout,stderr=p.communicate(timeout=15)
- if p.returncode or timed_out:
-  log='command-failure-'+secrets.token_hex(4)+'.log'
-  if 'work' in globals():(work/log).write_bytes(stdout+stderr)
-  raise RuntimeError(('Command timed out' if timed_out else 'Command failed')+'; private '+log+' retained: '+str(args[0]))
- return stdout
+ return run_command(args,cwd=ROOT,log_dir=globals().get('work'),input=input,timeout=timeout)
+
 def now():return datetime.datetime.now(datetime.timezone.utc).isoformat()
 p=argparse.ArgumentParser();p.add_argument('--baseline-image',required=True,help='Existing 0.3 image ID/tag used only with the fresh test database');p.add_argument('--keep-on-failure',action='store_true');p.add_argument('--peer-project',action='append',default=[],help='Exact other agent isolated Compose project; never a production project');p.add_argument('--reuse-build-cache',action='store_true');a=p.parse_args()
 assert all(__import__('re').fullmatch(r'h02test-[a-z0-9-]+',peer) for peer in a.peer_project)
@@ -114,8 +104,10 @@ try:
  compose('up','-d','--no-deps','--no-build','--force-recreate','--wait','app',app_only=True);assert http('/api/merchant')[0]==200;report['app_only_verified']=True
  assert snapshot()==report['inputs'],'Source inputs changed during acceptance; evidence rejected'
  report['runtime_passed']=True
-except Exception as e:
+except BaseException as e:
+ report['cancelled']=not isinstance(e,Exception)
  report['error']=str(e);save();print('Acceptance failed; private diagnostic retained',flush=True)
+ if not isinstance(e,Exception):raise
 finally:
  if proxy:
   try:
