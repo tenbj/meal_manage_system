@@ -174,9 +174,9 @@
     "erd": {
       "skill": "G02",
       "path": "docs/diagrams/erd.html",
-      "sha256": "e7bef891c7721668cb0d103d2a78adf29e93cff32314cb496e4a8a388008ea9d",
-      "maintenance": "reviewed_unchanged",
-      "change_note": "根据当前账号隔离、HTTP/HTTPS双入口和Docker源码核对；浏览器与容器验收待本轮完成。",
+      "sha256": "e98dfacbfb34784a477444e1828e0edbe4cfbd86c1ca4968ddcc95a09a3ce74f",
+      "maintenance": "updated",
+      "change_note": "修复SVG指针捕获导致实体普通点击无法打开详情；完整页面夹具已验证，最终容器验收待完成。",
       "sources": [
         {
           "path": "src/schema.js",
@@ -201,6 +201,10 @@
         {
           "path": "data/schema.sql",
           "sha256": "ef51a8a99a526f4f8514e085601344ad8f85b6cf6f1f0a8fa562e01fdebb042c"
+        },
+        {
+          "path": "scripts/render-account-erd.js",
+          "sha256": "aaeada287d7ffe8b5723006e3ae36e148174872b9039333d86941b47c063131e"
         }
       ]
     }
