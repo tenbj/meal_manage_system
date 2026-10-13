@@ -1,0 +1,7 @@
+(()=>{
+ function menu(){const header=document.querySelector('.topbar');if(!header||header.querySelector('.session-menu'))return;const details=document.createElement('details');details.className='session-menu';details.innerHTML='<summary>访问会话</summary><div><a href="/docs/API中文说明.html" target="_blank" rel="noopener">API 说明</a><a href="/diagrams/architecture.html" target="_blank" rel="noopener">系统架构</a><a href="/diagrams/erd.html" target="_blank" rel="noopener">数据模型</a><form method="post" action="/auth/logout"><button>退出登录</button></form></div>';header.append(details);}
+ new MutationObserver(menu).observe(document.querySelector('#app'),{childList:true,subtree:true});
+ document.addEventListener('click',e=>{document.querySelectorAll('.session-menu[open]').forEach(d=>{if(!d.contains(e.target))d.open=false;});});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.session-menu[open]').forEach(d=>{d.open=false;d.querySelector('summary').focus();});});
+ const style=document.createElement('style');style.textContent='.session-menu{position:relative;font-size:14px}.session-menu summary{cursor:pointer;padding:12px;min-width:90px}.session-menu>div{position:absolute;right:0;z-index:30;background:white;box-shadow:0 6px 25px #0002;padding:12px;border-radius:12px;min-width:160px}.session-menu a{display:block;padding:10px;color:inherit}.session-menu button{width:100%;padding:10px}.topbar{flex-wrap:wrap}';document.head.append(style);
+})();

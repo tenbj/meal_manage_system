@@ -3,11 +3,13 @@ const { setupSchema } = require("./schema");
 const { createApp } = require("./app");
 
 async function main() {
-  await setupSchema();
+  if(process.env.AUTO_MIGRATE!=='false') {await setupSchema();await require('./operations').setupOperations();}
   const app = createApp();
-  app.listen(config.port, () => {
+  const server=app.listen(config.port,'0.0.0.0', async () => {
+    await fetch(`http://127.0.0.1:${config.port}/api/merchant`,{headers:{Authorization:`Bearer ${process.env.APP_ACCESS_TOKEN||''}`}});
     console.log(`减脂双餐后台已启动：http://localhost:${config.port}`);
   });
+  for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>server.close(async()=>{await require('./db').closePool();process.exit(0);}));
 }
 
 main().catch((error) => {
