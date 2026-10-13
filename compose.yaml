@@ -16,6 +16,7 @@ services:
       APP_ACCESS_TOKEN: ${APP_ACCESS_TOKEN:-}
       APP_READ_TOKEN: ${APP_READ_TOKEN:-}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3200}
+      ADDITIONAL_PUBLIC_URLS: ${ADDITIONAL_PUBLIC_URLS:-}
       BOOHEE_API_KEY: ${BOOHEE_API_KEY:-}
     volumes:
       - runtime:/app/.runtime

@@ -5,10 +5,13 @@ const {identity}=require('./identity');
 const {config}=require('./config');
 const wrap=fn=>(req,res,next)=>Promise.resolve(fn(req,res,next)).catch(next);
 function installAuth(app){
- const origin=process.env.PUBLIC_URL||`http://localhost:${config.port}`;
- const origins={allows:value=>value===origin,secure:()=>origin.startsWith('https:')};
- const cookie=(req,value)=>`meal_session=${value}; Path=/; HttpOnly; SameSite=Strict${origins.secure()?'; Secure':''}`;
- const cookieToken=req=>(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('meal_session='))?.slice(13)||'';
+ const origins=require('./origin-policy').createOriginPolicy();
+ const cookie=(req,value)=>`meal_session_${origins.secure(req.get('origin'))?'https':'http'}=${value}; Path=/; HttpOnly; SameSite=Strict${origins.secure(req.get('origin'))?'; Secure':''}`;
+ const cookieToken=req=>{
+  const values=new Map((req.headers.cookie||'').split(';').map(x=>{const p=x.trim().indexOf('=');return [x.trim().slice(0,p),x.trim().slice(p+1)];}));
+  const names=req.get('origin')?.startsWith('http:')?['meal_session_http','meal_session_https']:['meal_session_https','meal_session_http'];
+  return names.map(name=>values.get(name)).find(Boolean)||'';
+ };
  const safeUser=u=>({id:u.id,username:u.username,displayName:u.display_name});
  const counters=new Map();
  const limited=(req,action)=>{
