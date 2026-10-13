@@ -17,7 +17,10 @@ const ctx=require('../support/context.cjs')(),cfg=ctx.config;
    assert.equal((await page.request.get(base+'/auth/me')).status(),200);
    await page.screenshot({path:path.join(ctx.runDir,base.startsWith('https')?'https.jpg':'http.jpg'),fullPage:true});
   }
-  checks.push('real HTTP and local TLS browser login simultaneously');
+  const cookies=await context.cookies();
+  assert(cookies.some(c=>c.name==='meal_session_http'&&!c.secure));
+  assert(cookies.some(c=>c.name==='meal_session_https'&&c.secure));
+  checks.push('same-host real HTTP and local TLS simultaneous login with independent cookie names and Secure attributes');
   const [page,secure]=pages;
   await page.getByRole('button',{name:'客户与订单',exact:true}).click();await page.getByRole('button',{name:'登记新客户',exact:true}).click();
   await page.locator('#dialog input[name=name]').fill('Isolated browser customer');await page.locator('select[name=fulfillment]').selectOption('pickup');await page.getByRole('button',{name:'保存客户',exact:true}).click();await page.locator('#dialog').waitFor({state:'hidden'});

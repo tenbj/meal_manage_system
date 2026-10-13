@@ -25,7 +25,7 @@ p=argparse.ArgumentParser();p.add_argument('--baseline-image',required=True,help
 assert all(__import__('re').fullmatch(r'h02test-[a-z0-9-]+',peer) for peer in a.peer_project)
 project='h02test-meal-'+secrets.token_hex(6);work=ROOT/'.test-runs'/project;work.mkdir(parents=True)
 cfg={'DB_HOST':'db','DB_PORT':'3306','DB_NAME':'meal_release_test','DB_USER':'mealtest','DB_PASSWORD':secrets.token_hex(24),'DB_ROOT_PASSWORD':secrets.token_hex(24),'INITIAL_PASSWORD':secrets.token_hex(20),'APP_ACCESS_TOKEN':secrets.token_hex(24),'APP_READ_TOKEN':secrets.token_hex(24),'APP_PORT':str(free_port()),'BIND_ADDRESS':'127.0.0.1','MEAL_IMAGE':project+':target'}
-cfg['PUBLIC_URL']='http://127.0.0.1:'+cfg['APP_PORT'];tls_port=free_port();cfg['ADDITIONAL_PUBLIC_URLS']='https://localhost:'+str(tls_port)
+cfg['PUBLIC_URL']='http://127.0.0.1:'+cfg['APP_PORT'];tls_port=free_port();cfg['ADDITIONAL_PUBLIC_URLS']='https://127.0.0.1:'+str(tls_port)
 env=work/'test.env';env.write_text('\n'.join(k+'='+v for k,v in cfg.items()),encoding='utf8')
 oldenv=work/'old.env';oldenv.write_text('\n'.join(k+'='+(a.baseline_image if k=='MEAL_IMAGE' else v) for k,v in cfg.items()),encoding='utf8')
 limits=work/'limits.yaml';limits.write_text('services:\n  db:\n    mem_limit: 512m\n    command: ["--performance-schema=OFF", "--innodb-buffer-pool-size=32M", "--max-connections=30"]\n',encoding='utf8')
@@ -82,7 +82,7 @@ try:
  from cryptography.hazmat.primitives import hashes,serialization
  from cryptography.hazmat.primitives.asymmetric import rsa
  key=rsa.generate_private_key(public_exponent=65537,key_size=2048);name=x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'localhost')]);stamp=datetime.datetime.now(datetime.timezone.utc)
- cert=x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key()).serial_number(x509.random_serial_number()).not_valid_before(stamp-datetime.timedelta(minutes=1)).not_valid_after(stamp+datetime.timedelta(days=1)).add_extension(x509.SubjectAlternativeName([x509.DNSName('localhost')]),False).sign(key,hashes.SHA256())
+ cert=x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key()).serial_number(x509.random_serial_number()).not_valid_before(stamp-datetime.timedelta(minutes=1)).not_valid_after(stamp+datetime.timedelta(days=1)).add_extension(x509.SubjectAlternativeName([x509.DNSName('localhost'),x509.IPAddress(__import__('ipaddress').ip_address('127.0.0.1'))]),False).sign(key,hashes.SHA256())
  (work/'tls.key').write_bytes(key.private_bytes(serialization.Encoding.PEM,serialization.PrivateFormat.PKCS8,serialization.NoEncryption()));(work/'tls.crt').write_bytes(cert.public_bytes(serialization.Encoding.PEM))
  proxy=subprocess.Popen(['node','tests/support/tls-proxy.cjs',str(tls_port),cfg['PUBLIC_URL'],str(work/'tls.key'),str(work/'tls.crt')],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  time.sleep(1);run(['node','tests/integration/browser.cjs',str(work/'run.json')],timeout=240)
