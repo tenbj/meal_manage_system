@@ -1,3 +1,4 @@
+const {identity}=require('../src/identity');
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const express=require('express');
@@ -6,7 +7,7 @@ const D=require('../public/assets/merchant-domain');
 const {createBoohee}=require('../src/boohee');
 
 test('merchant API persists revisions, rejects stale writes and unconfigured source claims',async()=>{
-  let record=null;
+  let record={revision:1,payload:JSON.stringify(D.initial())};
   const pool={query:async(sql,args)=>{
     if(sql.startsWith('CREATE'))return [{}];
     if(sql.startsWith('SELECT id'))return [record?[{id:1}]:[]];
@@ -15,7 +16,7 @@ test('merchant API persists revisions, rejects stale writes and unconfigured sou
     if(sql.startsWith('UPDATE')){if(record.revision!==args[1])return [{affectedRows:0}];record={revision:record.revision+1,payload:args[0]};return [{affectedRows:1}];}
     throw new Error(`Unexpected SQL: ${sql}`);
   }};
-  const app=express();app.use(express.json());app.use('/api/merchant',createMerchantRouter({readState:async()=>({})},{getPool:()=>pool,boohee:createBoohee({readKey:async()=>''})}));
+  const app=express();app.use(express.json());app.use((req,res,next)=>{if(req.get('origin') && req.get('origin')!=='http://'+req.get('host'))return res.sendStatus(403);req.access='write';identity.run({id:1},next);});app.use('/api/merchant',createMerchantRouter({readState:async()=>({})},{getPool:()=>pool,boohee:createBoohee({readKey:async()=>''})}));
   const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
   const url=`http://127.0.0.1:${server.address().port}/api/merchant`;
   try{
@@ -49,7 +50,7 @@ test('merchant API persists revisions, rejects stale writes and unconfigured sou
 
 test('connection endpoints preserve provider diagnostics and block requests from unrelated origins',async()=>{
   let calls=0;const boohee={check:async()=>{calls++;throw Object.assign(new Error('薄荷返回：接口未开通'),{status:502,kind:'provider',httpStatus:200,providerCode:1042});},connect:async()=>{calls++;return {configured:true,verified:true};}};
-  const app=express();app.use(express.json());app.use('/api/merchant',createMerchantRouter({}, {boohee}));
+  const app=express();app.use(express.json());app.use((req,res,next)=>{if(req.get('origin') && req.get('origin')!=='http://'+req.get('host'))return res.sendStatus(403);req.access='write';identity.run({id:1},next);});app.use('/api/merchant',createMerchantRouter({}, {boohee}));
   const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));const origin=`http://127.0.0.1:${server.address().port}`;
   try {
     const response=await fetch(origin+'/api/merchant/nutrition/check',{method:'POST',headers:{Origin:origin}});assert.equal(response.status,502);

@@ -14,14 +14,14 @@ function createApp(options = {}) {
   app.use(express.json({ limit: "25mb" }));
   require('./auth').installAuth(app);
   app.get('/health/live',(req,res)=>res.json({ok:true,version:require('../package.json').version}));
-  app.get('/health/ready',async(req,res)=>{try{await require('./db').getPool().query('SELECT revision FROM merchant_workspace WHERE id=1');res.json({ok:true,version:require('../package.json').version});}catch{res.status(503).json({ok:false});}});
+  app.get('/health/ready',async(req,res)=>{try{await require('./db').getPool().query('SELECT u.id FROM app_users u JOIN merchant_workspace w ON w.owner_id=u.id WHERE u.id=1 AND w.id=1');res.json({ok:true,version:require('../package.json').version});}catch{res.status(503).json({ok:false});}});
   app.use("/api/merchant", createMerchantRouter(repo));
   app.use('/api/v1',require('./operations').createOperationsRouter());
   require('./mcp').installMcp(app);
   app.use('/diagrams',express.static(path.resolve('docs/diagrams')));
   app.use('/docs',express.static(path.resolve('docs')));
   app.use(express.static(path.resolve(process.cwd(), "public")));
-  app.use("/api/ai", createAiWriteRouter({ actions: aiWrite.actions || repo, token: aiWrite.token ?? config.aiWriteToken }));
+  app.use("/api/ai", createAiWriteRouter({ actions: aiWrite.actions || repo, token: "" }));
 
   app.get("/api/health", async (req, res, next) => {
     try {
@@ -59,7 +59,7 @@ function createApp(options = {}) {
 
   app.use((error, req, res, next) => {
     console.error({code:error.code||'APPLICATION_ERROR'});
-    res.status(503).json({ ok: false, message: "服务暂不可用，请稍后重试" });
+    res.status(error.status||503).json({ ok: false, message: error.status&&error.status<500?error.message:"服务暂不可用，请稍后重试" });
   });
 
   return app;

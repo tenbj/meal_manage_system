@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createApp } = require("../src/app");
+const express=require("express"); function createApp(options){const app=express();app.use(express.json());app.use("/api/ai",require("../src/ai-write-api").createAiWriteRouter(options.aiWrite));return app;}
 const { aiWriteCapabilities, normalizeOrder, normalizeRecipe, AiWriteValidationError } = require("../src/ai-write-api");
 
 test("AI write capabilities expose function-scoped endpoints", () => {

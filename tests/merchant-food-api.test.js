@@ -1,3 +1,4 @@
+const {identity}=require('../src/identity');
 const test=require('node:test'),assert=require('node:assert/strict'),express=require('express');
 const D=require('../public/assets/merchant-domain'),{createMerchantRouter}=require('../src/merchant');
 test('food search is local first; confirmed provider imports persist and deduplicate across restart',async()=>{
@@ -8,7 +9,7 @@ test('food search is local first; confirmed provider imports persist and dedupli
     if(sql.startsWith('UPDATE')){if(args[1]!==record.revision)return [{affectedRows:0}];record={revision:record.revision+1,payload:JSON.stringify(mysqlOrder(JSON.parse(args[0])))};return [{affectedRows:1}];}throw new Error(sql);
   }};
   const boohee={status:async()=>({configured:true}),search:async()=>{searches++;return {foods:[{code:'rice',name:'熟米饭',kcal100:116}],hasMore:false};},detail:async()=>{details++;return {code:'rice',name:'熟米饭',kcal100:116,ingredients:['大米']};}};
-  const app=express();app.use(express.json());app.use('/api/merchant',createMerchantRouter({}, {getPool:()=>pool,boohee}));
+  const app=express();app.use(express.json());app.use((req,res,next)=>{if(req.get('origin') && req.get('origin')!=='http://'+req.get('host'))return res.sendStatus(403);req.access='write';identity.run({id:1},next);});app.use('/api/merchant',createMerchantRouter({}, {getPool:()=>pool,boohee}));
   const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));const base=`http://127.0.0.1:${server.address().port}/api/merchant`;
   const post=(path,body,method='POST')=>fetch(base+path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   try {

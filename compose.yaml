@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    image: ${MEAL_IMAGE:-meal-management:0.3.0}
+    image: ${MEAL_IMAGE:-meal-management:0.4.0}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-3200}:3200"
     environment:
@@ -12,8 +12,9 @@ services:
       DB_NAME: ${DB_NAME:?Set DB_NAME}
       DB_USER: ${DB_USER:?Set DB_USER}
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
-      APP_ACCESS_TOKEN: ${APP_ACCESS_TOKEN:?Set APP_ACCESS_TOKEN}
-      APP_READ_TOKEN: ${APP_READ_TOKEN:?Set APP_READ_TOKEN}
+      INITIAL_PASSWORD: ${INITIAL_PASSWORD:-}
+      APP_ACCESS_TOKEN: ${APP_ACCESS_TOKEN:-}
+      APP_READ_TOKEN: ${APP_READ_TOKEN:-}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3200}
       BOOHEE_API_KEY: ${BOOHEE_API_KEY:-}
     volumes:
